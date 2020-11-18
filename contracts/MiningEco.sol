@@ -23,7 +23,6 @@ interface IBaseProjectTemplate {
 struct Project {
     address payable addr;
     address payable owner;
-    address payable receiver;
 }
 
 contract MiningEco is HasConstantSlots {
@@ -39,21 +38,18 @@ contract MiningEco is HasConstantSlots {
 
     uint256 public constant fee_rate = 50;
 
-    Project[] public projects;
-
     address public platform_token;
     address payable public insurance_vault;
 
-    mapping(address => uint256) public projects_by_address;
+    mapping(bytes32 => Project) public projects;
+    mapping(address => bytes32) public projects_by_address;
+    mapping(address => bytes32[]) public users_projects;
 
-    mapping(address => uint256[]) public users_projects;
+    mapping(uint256 => string) templates;
 
-    uint256 next_project_id;
-    mapping(uint256 => bytes) templates;
-
-    modifier projectIdExists(uint256 id) {
+    modifier projectIdExists(bytes32 id) {
         require(
-            id > 0 && id < next_project_id,
+            projects[id].addr != address(0),
             "MiningEco: project doesn't exist"
         );
         _;
@@ -61,7 +57,7 @@ contract MiningEco is HasConstantSlots {
 
     modifier projectAddressExists(address addr) {
         require(
-            projects_by_address[addr] > 0,
+            projects_by_address[addr] != bytes32(0),
             "MiningEco: project doesn't exist"
         );
         _;
@@ -86,6 +82,14 @@ contract MiningEco is HasConstantSlots {
         _;
     }
 
+    modifier uniqueProjectId(bytes32 id) {
+        require(
+            projects[id].addr == address(0),
+            "MiningEco: project id is not unique"
+        );
+        _;
+    }
+
     function initialize(address token, address payable vault) public {
         require(!initialized, "MiningEco: has been initialized");
         address adm;
@@ -99,8 +103,6 @@ contract MiningEco is HasConstantSlots {
             "MiningEco: initialize should only called by MiningEcoProxy"
         );
 
-        projects.push();
-        next_project_id = 1;
         platform_token = token;
         insurance_vault = vault;
 
@@ -110,6 +112,8 @@ contract MiningEco is HasConstantSlots {
         assembly {
             sstore(slot, _sender)
         }
+
+        templates[0] = type(ProjectTemplate).name;
     }
 
     function set_platform_token(address addr) public isManager {
@@ -121,23 +125,19 @@ contract MiningEco is HasConstantSlots {
         insurance_vault = vault;
     }
 
-    function get_user_latest_project(address user)
-        public
-        view
-        returns (uint256, address)
-    {
-        uint256[] storage ps = users_projects[user];
-        if (ps.length == 0) {
-            return (0, address(0));
-        } else {
-            uint256 id = ps[ps.length - 1];
-            return (id, projects[id].addr);
-        }
-    }
-
-    function get_next_project_id() public view returns (uint256) {
-        return next_project_id;
-    }
+    // function get_user_latest_project(address user)
+    //     public
+    //     view
+    //     returns (uint256, address)
+    // {
+    //     uint256[] storage ps = users_projects[user];
+    //     if (ps.length == 0) {
+    //         return (0, address(0));
+    //     } else {
+    //         uint256 id = ps[ps.length - 1];
+    //         return (id, projects[id].addr);
+    //     }
+    // }
 
     function invest(address project_address, uint256 amount)
         external
@@ -146,7 +146,7 @@ contract MiningEco is HasConstantSlots {
         _invest(project_address, amount);
     }
 
-    function invest(uint256 project_id, uint256 amount)
+    function invest(bytes32 project_id, uint256 amount)
         external
         projectIdExists(project_id)
     {
@@ -161,12 +161,12 @@ contract MiningEco is HasConstantSlots {
         _refund(project_address);
     }
 
-    function refund(uint256 project_id) external projectIdExists(project_id) {
+    function refund(bytes32 project_id) external projectIdExists(project_id) {
         address project_address = projects[project_id].addr;
         _refund(project_address);
     }
 
-    function repay(uint256 project_id) external projectIdExists(project_id) {
+    function repay(bytes32 project_id) external projectIdExists(project_id) {
         address project_address = projects[project_id].addr;
         _repay(project_address);
     }
@@ -220,56 +220,54 @@ contract MiningEco is HasConstantSlots {
     // called with template_id, max raising amount and calldata for initialization
     function new_project(
         uint256 template_id,
+        bytes32 project_id,
         uint256 max_amount,
         bytes calldata init_calldata
-    ) external templateIdExists(template_id) {
+    ) external templateIdExists(template_id) uniqueProjectId(project_id) {
         uint256 fee = max_amount.mul(fee_rate).div(10000);
         IERC20(platform_token).safeTransferFrom(msg.sender, address(this), fee);
 
-        uint256 pid = assign_project_id();
-        address addr = create_project_from_template(
+        address project_addr = create_project_from_template(
             msg.sender,
             template_id,
-            pid
+            project_id
         );
-        append_new_project_to_user(msg.sender, pid);
         Project memory p = Project({
-            addr: payable(addr),
-            owner: msg.sender,
-            receiver: msg.sender
+            addr: payable(project_addr),
+            owner: msg.sender
         });
-        projects.push(p);
-        projects_by_address[addr] = pid;
+        projects[project_id] = p;
+        projects_by_address[project_addr] = project_id;
+        append_new_project_to_user(msg.sender, project_id);
 
         if (init_calldata.length > 0) {
-            addr.functionCall(init_calldata);
+            project_addr.functionCall(init_calldata);
         }
     }
 
-    function assign_project_id() internal returns (uint256) {
-        uint256 id = next_project_id;
-        next_project_id = id.add(1);
-        return id;
-    }
-
-    function append_new_project_to_user(address user, uint256 pid) internal {
-        uint256[] storage pjs = users_projects[user];
+    function append_new_project_to_user(address user, bytes32 pid) internal {
+        bytes32[] storage pjs = users_projects[user];
         pjs.push(pid);
     }
 
     function create_project_from_template(
         address owner,
         uint256 template_id,
-        uint256 project_id
+        bytes32 project_id
     ) internal returns (address p_addr) {
+        bytes memory creationCode;
+        if (template_id == 0) {
+            creationCode = type(ProjectTemplate).creationCode;
+        }
         bytes memory bytecode = abi.encodePacked(
-            type(ProjectTemplate).creationCode,
+            creationCode,
             abi.encode(project_id)
         );
         // this is where the salt can be imported
-        bytes32 salt = keccak256(
-            abi.encodePacked(owner, template_id, project_id)
-        );
+        // bytes32 salt = keccak256(
+        //     abi.encodePacked(owner, template_id, project_id)
+        // );
+        bytes32 salt = project_id;
         address predict = address(
             uint256(
                 keccak256(

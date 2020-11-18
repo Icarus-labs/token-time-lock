@@ -97,7 +97,7 @@ contract ProjectTemplate is BaseProjectTemplate, ProjectToken {
 
     event VoteCast(address who, uint256 phase_id, bool support, uint256 votes);
 
-    constructor(address _platform, uint256 id)
+    constructor(address _platform, bytes32 id)
         public
         BaseProjectTemplate(id)
         ProjectToken("pjt")

@@ -22,14 +22,12 @@ enum ProjectStatus {
 
 abstract contract BaseProjectTemplate is Ownable {
     string public name = "";
-    uint256 public id;
-
+    bytes32 public id;
     address public platform;
     ProjectStatus public status;
-
     uint256 public max_amount;
 
-    constructor(uint256 _project_id) public {
+    constructor(bytes32 _project_id) public {
         id = _project_id;
     }
 
