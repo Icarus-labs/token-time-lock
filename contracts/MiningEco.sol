@@ -3,14 +3,11 @@
 pragma solidity >=0.4.22 <0.8.0;
 
 import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./ProjectTemplate.sol";
 import "./HasConstantSlots.sol";
-
-import "hardhat/console.sol";
 
 interface IBaseProjectTemplate {
     function platform_invest(address account, uint256 amount) external;
@@ -30,9 +27,8 @@ contract MiningEco is HasConstantSlots {
     using Address for address;
     using SafeERC20 for IERC20;
 
-    IERC20 constant USDT_address = IERC20(
-        0xdAC17F958D2ee523a2206206994597C13D831ec7
-    );
+    IERC20 constant USDT_address =
+        IERC20(0xdAC17F958D2ee523a2206206994597C13D831ec7);
 
     bool public initialized;
 
@@ -125,20 +121,6 @@ contract MiningEco is HasConstantSlots {
         insurance_vault = vault;
     }
 
-    // function get_user_latest_project(address user)
-    //     public
-    //     view
-    //     returns (uint256, address)
-    // {
-    //     uint256[] storage ps = users_projects[user];
-    //     if (ps.length == 0) {
-    //         return (0, address(0));
-    //     } else {
-    //         uint256 id = ps[ps.length - 1];
-    //         return (id, projects[id].addr);
-    //     }
-    // }
-
     function invest(address project_address, uint256 amount)
         external
         projectAddressExists(project_address)
@@ -227,15 +209,10 @@ contract MiningEco is HasConstantSlots {
         uint256 fee = max_amount.mul(fee_rate).div(10000);
         IERC20(platform_token).safeTransferFrom(msg.sender, address(this), fee);
 
-        address project_addr = create_project_from_template(
-            msg.sender,
-            template_id,
-            project_id
-        );
-        Project memory p = Project({
-            addr: payable(project_addr),
-            owner: msg.sender
-        });
+        address project_addr =
+            create_project_from_template(msg.sender, template_id, project_id);
+        Project memory p =
+            Project({addr: payable(project_addr), owner: msg.sender});
         projects[project_id] = p;
         projects_by_address[project_addr] = project_id;
         append_new_project_to_user(msg.sender, project_id);
@@ -259,27 +236,26 @@ contract MiningEco is HasConstantSlots {
         if (template_id == 0) {
             creationCode = type(ProjectTemplate).creationCode;
         }
-        bytes memory bytecode = abi.encodePacked(
-            creationCode,
-            abi.encode(project_id)
-        );
+        bytes memory bytecode =
+            abi.encodePacked(creationCode, abi.encode(project_id));
         // this is where the salt can be imported
         // bytes32 salt = keccak256(
         //     abi.encodePacked(owner, template_id, project_id)
         // );
         bytes32 salt = project_id;
-        address predict = address(
-            uint256(
-                keccak256(
-                    abi.encodePacked(
-                        bytes1(0xff),
-                        address(this),
-                        salt,
-                        keccak256(bytecode)
+        address predict =
+            address(
+                uint256(
+                    keccak256(
+                        abi.encodePacked(
+                            bytes1(0xff),
+                            address(this),
+                            salt,
+                            keccak256(bytecode)
+                        )
                     )
                 )
-            )
-        );
+            );
         require(!predict.isContract(), "MiningEco: address is already taken");
         assembly {
             p_addr := create2(0, add(bytecode, 32), mload(bytecode), salt)
