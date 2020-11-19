@@ -1,4 +1,5 @@
 require("@nomiclabs/hardhat-waffle");
+require("@openzeppelin/hardhat-upgrades");
 
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
@@ -24,7 +25,8 @@ module.exports = {
       chainId: 3,
       url: "https://ropsten.infura.io/v3/e468cafc35eb43f0b6bd2ab4c83fa688",
       accounts: [
-        "0ac5211d9a97558e0a929d2b33cb33fd8def2970a9315dc093871b405a64207d",
+        "0ac5211d9a97558e0a929d2b33cb33fd8def2970a9315dc093871b405a64207d", // me
+        "fcd09fc317b13cdf6603bb93853db7e53316bc7c9dc6d4f2cfac1fd093df2f6b", // bobo
       ],
     },
   },

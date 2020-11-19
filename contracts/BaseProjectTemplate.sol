@@ -51,10 +51,6 @@ abstract contract BaseProjectTemplate is Ownable, ProjectToken {
 
     function platform_invest(address account, uint256 amount) external virtual;
 
-    function platform_refund(address account) external virtual;
-
-    function platform_repay(address account) external virtual;
-
     function heartbeat() external virtual;
 
     function _beforeTokenTransfer(

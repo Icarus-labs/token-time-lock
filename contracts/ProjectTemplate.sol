@@ -66,19 +66,18 @@ contract ProjectTemplate is BaseProjectTemplate {
     uint256 public raise_end;
     uint256 public insurance_deadline;
     bool public insurance_paid;
-    VotingPhase[] phases;
     int256 public current_phase;
     uint256 public phase_replan_deadline;
     uint256 public repay_deadline;
     uint256 public profit_rate;
     uint256 public promised_repay;
-
+    address public fund_receiver;
     uint256 public failed_phase_count;
     uint256 public failed_replan_count;
 
+    VotingPhase[] phases;
     ReplanVotes replan_votes;
-
-    address public fund_receiver;
+    mapping(address => bool) who_can_replan;
 
     event ProjectCollecting(bytes32 project_id);
     event ProjectFailed(bytes32 project_id);
@@ -98,26 +97,37 @@ contract ProjectTemplate is BaseProjectTemplate {
     event ReplanVoteCast(address voter, bool support, uint256 votes);
 
     modifier projectJustCreated() {
-        require(
-            status == ProjectStatus.Created,
-            "ProjectTemplate: project has already been initialized"
-        );
+        require(status == ProjectStatus.Created);
         _;
     }
 
-    // TODO: actualy require
     modifier requireReplanAuth() {
+        require(who_can_replan[msg.sender] == true);
         _;
     }
 
-    constructor(address _platform, bytes32 id)
-        public
-        BaseProjectTemplate(id)
-        ProjectToken("pjt")
-    {
+    constructor(
+        address _platform,
+        bytes32 id,
+        string memory symbol
+    ) public BaseProjectTemplate(id) ProjectToken(symbol) {
         platform = _platform;
         status = ProjectStatus.Created;
         current_phase = -1;
+        who_can_replan[msg.sender] = true;
+    }
+
+    function transferOwnership(address a) public virtual override onlyOwner {
+        super.transferOwnership(a);
+        who_can_replan[a] = true;
+    }
+
+    function revoke_replan_auth(address a) public onlyOwner {
+        who_can_replan[a] = false;
+    }
+
+    function grant_replan_auth(address a) public onlyOwner {
+        who_can_replan[a] = true;
     }
 
     function set_fund_rceiver(address recv) public onlyOwner {
@@ -189,10 +199,7 @@ contract ProjectTemplate is BaseProjectTemplate {
             phases[i].amount = _phases[i].amount;
             phases[i].success_tally = _phases[i].success_tally;
         }
-        require(
-            total_amount >= _min && total_amount <= _max,
-            "ProjectTemplate: inconsistant total phase amount and project raising amount"
-        );
+        require(total_amount >= _min && total_amount <= _max);
         raise_start = _raise_start;
         raise_end = _raise_end;
         min_amount = _min;
@@ -208,16 +215,26 @@ contract ProjectTemplate is BaseProjectTemplate {
         requireReplanAuth
         nonReentrant
     {
-        require(
-            status == ProjectStatus.PhaseFailed ||
-                status == ProjectStatus.ReplanFailed,
-            "ProjectTemplate: not ready for replan"
-        );
+        if (status == ProjectStatus.Rolling) {
+            require(
+                uint256(current_phase) + 1 < phases.length &&
+                    phases[uint256(current_phase)].closed &&
+                    phases[uint256(current_phase)].result &&
+                    block.number < phases[uint256(current_phase + 1)].start
+            );
+            _replan(_phases);
+        } else {
+            require(
+                status == ProjectStatus.PhaseFailed ||
+                    status == ProjectStatus.ReplanFailed
+            );
+            _replan(_phases);
+        }
+    }
+
+    function _replan(PhaseInfo[] memory _phases) internal {
         uint256 phase_left = phases.length - uint256(current_phase);
-        require(
-            _phases.length == phase_left,
-            "ProjectTemplate: invalid new phases"
-        );
+        require(_phases.length == phase_left);
         uint256 total_amount_left;
         for (uint256 i = uint256(current_phase); i < phases.length; i++) {
             total_amount_left = total_amount_left.add(phases[i].amount);
@@ -226,16 +243,10 @@ contract ProjectTemplate is BaseProjectTemplate {
         for (uint256 j = 0; j < _phases.length; j++) {
             total_amount_new = total_amount_new.add(_phases[j].amount);
         }
-        require(
-            total_amount_left == total_amount_new,
-            "ProjectTemplate: phase total amount doesn't match"
-        );
+        require(total_amount_left == total_amount_new);
         uint256 checkpoint = block.number + BLOCKS_PER_DAY * REPLAN_NOTICE;
         uint256 deadline = checkpoint + BLOCKS_PER_DAY * REPLAN_VOTE_WINDOW;
-        require(
-            _phases[0].start >= deadline,
-            "ProjectTemplate: cross between replan vote and new phase"
-        );
+        require(_phases[0].start >= deadline);
         _setup_vote_for_replan(_phases, checkpoint, deadline);
     }
 
@@ -423,76 +434,50 @@ contract ProjectTemplate is BaseProjectTemplate {
         platformRequired
     {
         heartbeat();
-        require(
-            status == ProjectStatus.Collecting,
-            "ProjectTemplate: project must be collecting"
-        );
-        require(
-            max_amount >= totalSupply + amount,
-            "ProjectTemplate: fully raised"
-        );
+        require(status == ProjectStatus.Collecting);
+        require(max_amount >= totalSupply + amount);
         _mint(account, amount);
-    }
-
-    function platform_refund(address account)
-        public
-        override
-        nonReentrant
-        platformRequired
-    {
-        heartbeat();
-        require(
-            status == ProjectStatus.Refunding,
-            "ProjectTemplate: project is not refunding"
-        );
-        _refund(account);
     }
 
     function refund() public nonReentrant {
         heartbeat();
-        require(
-            status == ProjectStatus.Refunding,
-            "ProjectTemplate: project is not refunding"
-        );
+        require(status == ProjectStatus.Refunding);
         _refund(msg.sender);
+    }
+
+    function liquidate() public nonReentrant {
+        heartbeat();
+        require(status == ProjectStatus.Liquidating);
+        _liquidate(msg.sender);
     }
 
     function _refund(address account) internal {
         uint256 amount = _balances[account];
-        require(amount > 0, "ProjectTemplate: account doesn't hold any share");
+        require(amount > 0);
         USDT_address.safeTransfer(account, amount);
         _transfer(account, address(this), amount);
     }
 
-    function platform_repay(address account)
-        public
-        override
-        nonReentrant
-        platformRequired
-    {
-        heartbeat();
-        require(
-            status == ProjectStatus.Repaying,
-            "ProjectTemplate: project is not repaying"
-        );
-        _repay(account);
+    function _liquidate(address account) internal {
+        uint256 amount = _balances[account];
+        require(amount > 0);
+        uint256 l_amount = _locked_investment().mul(amount).div(totalSupply);
+        USDT_address.safeTransfer(account, l_amount);
+        _transfer(account, address(this), amount);
     }
 
     function repay() public nonReentrant {
         heartbeat();
-        require(
-            status == ProjectStatus.Repaying,
-            "ProjectTemplate: project is not repaying"
-        );
+        require(status == ProjectStatus.Repaying);
         _repay(msg.sender);
     }
 
     function _repay(address account) internal {
         uint256 amount = _balances[account];
-        require(amount > 0, "ProjectTemplate: account doesn't hold any share");
+        require(amount > 0);
         uint256 profit_total = amount.mul(profit_rate).div(10000).add(amount);
         uint256 this_usdt_balance = USDT_address.balanceOf(address(this));
-        require(this_usdt_balance > 0, "ProjectTemplate: insufficient USDT");
+        require(this_usdt_balance > 0);
         if (profit_total > this_usdt_balance) {
             profit_total = this_usdt_balance;
         }
@@ -502,32 +487,19 @@ contract ProjectTemplate is BaseProjectTemplate {
 
     function vote(uint256 phase_id, bool support) public nonReentrant {
         heartbeat();
-        require(
-            status == ProjectStatus.Rolling,
-            "ProjectTemplate: does not receive votes now"
-        );
-        require(
-            uint256(current_phase) == phase_id,
-            "ProjectTemplate: the phase is not in the window"
-        );
+        require(status == ProjectStatus.Rolling);
+        require(uint256(current_phase) == phase_id);
         _cast_vote(msg.sender, phase_id, support);
         _check_vote_result();
     }
 
     function vote_replan(bool support) public nonReentrant {
         heartbeat();
-        require(
-            status == ProjectStatus.ReplanVoting,
-            "ProjectTemplate: no replan for voting"
-        );
-        require(
-            replan_votes.new_phases.length > 0,
-            "ProjectTemplate: no new phases"
-        );
+        require(status == ProjectStatus.ReplanVoting);
+        require(replan_votes.new_phases.length > 0);
         require(
             block.number >= replan_votes.checkpoint &&
-                block.number < replan_votes.deadline,
-            "ProjectTemplate: not in the replan vote window"
+                block.number < replan_votes.deadline
         );
         _cast_replan_vote(msg.sender, support);
         _check_replan_vote_result();
@@ -547,10 +519,7 @@ contract ProjectTemplate is BaseProjectTemplate {
     function claim() public onlyOwner {
         for (uint256 i = 0; i < uint256(current_phase); i++) {
             VotingPhase storage vp = phases[i];
-            require(
-                vp.closed && vp.result,
-                "ProjectTemplate: voting phase is invalid to be claimed"
-            );
+            require(vp.closed && vp.result);
             if (vp.claimed) {
                 continue;
             } else {
@@ -570,22 +539,16 @@ contract ProjectTemplate is BaseProjectTemplate {
         uint256 phase_id,
         bool support
     ) internal {
-        require(
-            uint256(current_phase) == phase_id,
-            "ProjectTemplate: voting is closed"
-        );
+        require(uint256(current_phase) == phase_id);
 
         VotingPhase storage vp = phases[phase_id];
-        require(!vp.closed, "ProjectTemplate: voting is closed");
+        require(!vp.closed);
 
         VotingReceipt storage receipt = vp.votes.receipts[voter];
-        require(
-            receipt.hasVoted == false,
-            "ProjectTemplate: voter already voted"
-        );
+        require(receipt.hasVoted == false);
 
         uint256 votes = getPriorVotes(voter, vp.start);
-        require(votes > 0, "ProjectTemplate: no votes");
+        require(votes > 0);
 
         if (support) {
             vp.votes.for_votes = vp.votes.for_votes.add(votes);
@@ -602,13 +565,10 @@ contract ProjectTemplate is BaseProjectTemplate {
 
     function _cast_replan_vote(address voter, bool support) internal {
         VotingReceipt storage receipt = replan_votes.votes.receipts[voter];
-        require(
-            receipt.hasVoted == false,
-            "ProjectTemplate: voter already voted"
-        );
+        require(receipt.hasVoted == false);
 
         uint256 votes = getPriorVotes(voter, replan_votes.checkpoint);
-        require(votes > 0, "ProjectTemplate: no votes");
+        require(votes > 0);
 
         if (support) {
             replan_votes.votes.for_votes = replan_votes.votes.for_votes.add(
@@ -683,10 +643,7 @@ contract ProjectTemplate is BaseProjectTemplate {
     // _when_phase_been_approved should only be executed only once
     function _when_phase_been_approved(uint256 _phase_id) internal {
         VotingPhase storage vp = phases[_phase_id];
-        require(
-            !vp.claimed && !vp.processed,
-            "ProjectTemplate: phase has been processed"
-        );
+        require(!vp.claimed && !vp.processed);
         vp.claimed = true;
         vp.processed = true;
         address receiver = owner();
@@ -699,10 +656,7 @@ contract ProjectTemplate is BaseProjectTemplate {
     // _when_phase_been_denied should only be executed only once
     function _when_phase_been_denied(uint256 _phase_id) internal {
         VotingPhase storage vp = phases[_phase_id];
-        require(
-            !vp.claimed && !vp.processed,
-            "ProjectTemplate: phase has been processed"
-        );
+        require(!vp.claimed && !vp.processed);
         vp.processed = true;
         failed_phase_count = failed_phase_count.add(1);
         if (failed_phase_count >= FAILED_PHASE_MAX) {
@@ -722,7 +676,10 @@ contract ProjectTemplate is BaseProjectTemplate {
         return block.number + BLOCKS_PER_DAY * 3;
     }
 
-    function _project_fail() internal {}
+    function _project_fail() internal {
+        status = ProjectStatus.Liquidating;
+        emit ProjectLiquidating(id);
+    }
 
     function _beforeTokenTransfer(
         address from,
@@ -734,10 +691,15 @@ contract ProjectTemplate is BaseProjectTemplate {
             require(to == to);
             // When minting tokens
             uint256 newSupply = totalSupply.add(amount);
-            require(
-                newSupply <= max_amount,
-                "ProjectTemplate: max amount exceeded"
-            );
+            require(newSupply <= max_amount);
         }
+    }
+
+    function _locked_investment() internal view returns (uint256) {
+        uint256 total = 0;
+        for (uint256 i = uint256(current_phase); i < phases.length; i++) {
+            total = total.add(phases[i].amount);
+        }
+        return total;
     }
 }

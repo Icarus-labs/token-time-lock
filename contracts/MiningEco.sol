@@ -11,10 +11,6 @@ import "./HasConstantSlots.sol";
 
 interface IBaseProjectTemplate {
     function platform_invest(address account, uint256 amount) external;
-
-    function platform_refund(address account) external;
-
-    function platform_repay(address account) external;
 }
 
 struct Project {
@@ -41,7 +37,7 @@ contract MiningEco is HasConstantSlots {
     mapping(address => bytes32) public projects_by_address;
     mapping(address => bytes32[]) public users_projects;
 
-    mapping(uint256 => string) templates;
+    mapping(uint256 => string) public templates;
 
     modifier projectIdExists(bytes32 id) {
         require(
@@ -61,6 +57,11 @@ contract MiningEco is HasConstantSlots {
 
     modifier templateIdExists(uint256 id) {
         require(id == 0, "MiningEco: template doesn't exist");
+        _;
+    }
+
+    modifier platformInitialized() {
+        require(initialized);
         _;
     }
 
@@ -108,8 +109,8 @@ contract MiningEco is HasConstantSlots {
         assembly {
             sstore(slot, _sender)
         }
-
         templates[0] = type(ProjectTemplate).name;
+        initialized = true;
     }
 
     function set_platform_token(address addr) public isManager {
@@ -134,48 +135,6 @@ contract MiningEco is HasConstantSlots {
     {
         address project_address = projects[project_id].addr;
         _invest(project_address, amount);
-    }
-
-    function refund(address project_address)
-        external
-        projectAddressExists(project_address)
-    {
-        _refund(project_address);
-    }
-
-    function refund(bytes32 project_id) external projectIdExists(project_id) {
-        address project_address = projects[project_id].addr;
-        _refund(project_address);
-    }
-
-    function repay(bytes32 project_id) external projectIdExists(project_id) {
-        address project_address = projects[project_id].addr;
-        _repay(project_address);
-    }
-
-    function repay(address project_address)
-        external
-        projectAddressExists(project_address)
-    {
-        _repay(project_address);
-    }
-
-    function _repay(address project_address) internal {
-        require(
-            BaseProjectTemplate(project_address).status() ==
-                ProjectStatus.Repaying,
-            "MiningEco: the project is not in repaying"
-        );
-        IBaseProjectTemplate(project_address).platform_repay(msg.sender);
-    }
-
-    function _refund(address project_address) internal {
-        require(
-            BaseProjectTemplate(project_address).status() ==
-                ProjectStatus.Refunding,
-            "MiningEco: the project is not in refunding"
-        );
-        IBaseProjectTemplate(project_address).platform_refund(msg.sender);
     }
 
     function _invest(address project_address, uint256 amount) internal {
@@ -204,13 +163,24 @@ contract MiningEco is HasConstantSlots {
         uint256 template_id,
         bytes32 project_id,
         uint256 max_amount,
+        string calldata symbol,
         bytes calldata init_calldata
-    ) external templateIdExists(template_id) uniqueProjectId(project_id) {
+    )
+        external
+        platformInitialized
+        templateIdExists(template_id)
+        uniqueProjectId(project_id)
+    {
         uint256 fee = max_amount.mul(fee_rate).div(10000);
         IERC20(platform_token).safeTransferFrom(msg.sender, address(this), fee);
 
         address project_addr =
-            create_project_from_template(msg.sender, template_id, project_id);
+            create_project_from_template(
+                msg.sender,
+                template_id,
+                project_id,
+                symbol
+            );
         Project memory p =
             Project({addr: payable(project_addr), owner: msg.sender});
         projects[project_id] = p;
@@ -230,14 +200,20 @@ contract MiningEco is HasConstantSlots {
     function create_project_from_template(
         address owner,
         uint256 template_id,
-        bytes32 project_id
+        bytes32 project_id,
+        string memory symbol
     ) internal returns (address p_addr) {
         bytes memory creationCode;
         if (template_id == 0) {
             creationCode = type(ProjectTemplate).creationCode;
         }
         bytes memory bytecode =
-            abi.encodePacked(creationCode, abi.encode(project_id));
+            abi.encodePacked(
+                creationCode,
+                abi.encode(address(this)),
+                abi.encode(project_id),
+                abi.encode(symbol)
+            );
         // this is where the salt can be imported
         // bytes32 salt = keccak256(
         //     abi.encodePacked(owner, template_id, project_id)
