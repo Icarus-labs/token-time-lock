@@ -134,6 +134,31 @@ contract ProjectTemplate is BaseProjectTemplate {
         fund_receiver = recv;
     }
 
+    function voted(
+        address user,
+        uint256 phase_id,
+        bool replan
+    ) public view returns (uint256, bool) {
+        if (replan) {
+            require(replan_votes.checkpoint != 0);
+            VotingReceipt storage vr = replan_votes.votes.receipts[user];
+            if (vr.votes > 0) {
+                return (vr.votes, true);
+            } else {
+                return (0, false);
+            }
+        } else {
+            VotingPhase storage vp = phases[phase_id];
+            require(vp.start != 0);
+            VotingReceipt storage vr = vp.votes.receipts[user];
+            if (vr.votes > 0) {
+                return (vr.votes, true);
+            } else {
+                return (0, false);
+            }
+        }
+    }
+
     function initialize(
         address _recv,
         uint256 _raise_start,
@@ -194,6 +219,9 @@ contract ProjectTemplate is BaseProjectTemplate {
         for (uint256 i = 0; i < _phases.length; i++) {
             total_amount = total_amount.add(_phases[i].amount);
             require(_phases[i].start < _phases[i].end);
+            if (i + 1 < _phases.length) {
+                require(_phases[i].end <= _phases[i + 1].start);
+            }
             phases.push(
                 VotingPhase({
                     start: _phases[i].start,
