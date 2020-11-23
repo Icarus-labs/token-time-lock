@@ -47,8 +47,8 @@ describe("MiningEco", function () {
     this.dada = await StakingToken.deploy(
       "DaDa Token",
       "DADA",
-      DADA_TOTAL_SUPPLY,
-      DADA_TOTAL_SUPPLY
+      DADA_TOTAL_SUPPLY.toString(),
+      DADA_TOTAL_SUPPLY.toString()
     );
 
     const [admin, platformManager, pm, other] = await ethers.getSigners();
@@ -72,9 +72,9 @@ describe("MiningEco", function () {
 
     this.miningEco = miningEco.attach(proxy.address);
 
-    const amount = D18.mul(new BN(10000));
-    await this.dada.mint(amount);
-    await this.dada.transfer(pm.address, amount);
+    this.balancePM = D18.mul(new BN(10000));
+    await this.dada.mint(this.balancePM.toString());
+    await this.dada.transfer(pm.address, this.balancePM.toString());
   });
 
   it("platform is initialized", async function () {
@@ -96,7 +96,7 @@ describe("MiningEco", function () {
     const insuranceDeadline = 300;
     const repayDeadline = 1000;
     const profitRate = 1000;
-    const phases = [[201, 202, "1000000000000000000000000"]];
+    const phases = [[201, 202, 100]];
     const replanGrants = [pm.address];
     const calldata = ProjectTemplate.interface.encodeFunctionData(
       initializeFrgmt,
@@ -104,8 +104,8 @@ describe("MiningEco", function () {
         pm.address,
         raiseStart,
         raiseEnd,
-        min,
-        max,
+        min.toString(),
+        max.toString(),
         insuranceDeadline,
         repayDeadline,
         profitRate,
@@ -115,11 +115,11 @@ describe("MiningEco", function () {
     );
     await this.dada
       .connect(pm)
-      .approve(miningEco.address, "50000000000000000000000");
+      .approve(miningEco.address, this.balancePM.toString());
     let sent = await miningEco.new_project(
       0,
       projectId,
-      max,
+      max.toString(),
       "test1",
       calldata
     );
@@ -138,16 +138,16 @@ describe("MiningEco", function () {
     const projectId = "0x" + cryptoRandomString({ length: 64 });
     const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
-    const max = "2000000000000000000000000";
-    const min = "800000000000000000000000";
+    const max = D18.mul(new BN(1000000));
+    const min = D18.mul(new BN(800000));
     const raiseStart = 100;
     const raiseEnd = 200;
     const insuranceDeadline = 300;
     const repayDeadline = 1000;
     const profitRate = 1000;
     const phases = [
-      [201, 210, "1000000000000000000000000"],
-      [209, 220, "1000000000000000000000000"],
+      [201, 210, 80],
+      [209, 220, 20],
     ];
     const replanGrants = [pm.address];
     const calldata = ProjectTemplate.interface.encodeFunctionData(
@@ -156,8 +156,8 @@ describe("MiningEco", function () {
         pm.address,
         raiseStart,
         raiseEnd,
-        min,
-        max,
+        min.toString(),
+        max.toString(),
         insuranceDeadline,
         repayDeadline,
         profitRate,
@@ -167,9 +167,10 @@ describe("MiningEco", function () {
     );
     await this.dada
       .connect(pm)
-      .approve(miningEco.address, "50000000000000000000000");
-    await expect(miningEco.new_project(0, projectId, max, "test1", calldata)).to
-      .be.reverted;
+      .approve(miningEco.address, this.balancePM.toString());
+    await expect(
+      miningEco.new_project(0, projectId, max.toString(), "test1", calldata)
+    ).to.be.reverted;
   });
 
   it("insufficient creation fee", async function () {
@@ -178,16 +179,16 @@ describe("MiningEco", function () {
     const projectId = "0x" + cryptoRandomString({ length: 64 });
     const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
-    const max = "1000000000000000000000000000";
-    const min = "3000000000000000000000000";
+    const max = D18.mul(new BN(1000000000));
+    const min = D18.mul(new BN(20000));
     const raiseStart = 100;
     const raiseEnd = 200;
     const insuranceDeadline = 300;
     const repayDeadline = 1000;
     const profitRate = 1000;
     const phases = [
-      [201, 210, "1000000000000000000000000"],
-      [220, 230, "1000000000000000000000000"],
+      [201, 210, 80],
+      [220, 230, 20],
     ];
     const replanGrants = [pm.address];
     const calldata = ProjectTemplate.interface.encodeFunctionData(
@@ -196,8 +197,8 @@ describe("MiningEco", function () {
         pm.address,
         raiseStart,
         raiseEnd,
-        min,
-        max,
+        min.toString(),
+        max.toString(),
         insuranceDeadline,
         repayDeadline,
         profitRate,
@@ -207,9 +208,9 @@ describe("MiningEco", function () {
     );
     await this.dada
       .connect(pm)
-      .approve(miningEco.address, "50000000000000000000000");
+      .approve(miningEco.address, this.balancePM.toString());
     await expect(
-      miningEco.new_project(0, projectId, max, "test1", calldata)
+      miningEco.new_project(0, projectId, max.toString(), "test1", calldata)
     ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
   });
 
@@ -219,16 +220,16 @@ describe("MiningEco", function () {
     const projectId = "0x" + cryptoRandomString({ length: 64 });
     const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
-    const max = "10000000000000000000000000";
-    const min = "3000000000000000000000000";
+    const max = D18.mul(new BN(1000000));
+    const min = D18.mul(new BN(800000));
     const raiseStart = 100;
     const raiseEnd = 200;
     const insuranceDeadline = 300;
     const repayDeadline = 1000;
     const profitRate = 1000;
     const phases = [
-      [201, 210, "1000000000000000000000000"],
-      [220, 230, "1000000000000000000000000"],
+      [201, 210, 80],
+      [220, 230, 10],
     ];
     const replanGrants = [pm.address];
     const calldata = ProjectTemplate.interface.encodeFunctionData(
@@ -237,8 +238,8 @@ describe("MiningEco", function () {
         pm.address,
         raiseStart,
         raiseEnd,
-        min,
-        max,
+        min.toString(),
+        max.toString(),
         insuranceDeadline,
         repayDeadline,
         profitRate,
@@ -248,9 +249,10 @@ describe("MiningEco", function () {
     );
     await this.dada
       .connect(pm)
-      .approve(miningEco.address, "50000000000000000000000");
-    await expect(miningEco.new_project(0, projectId, max, "test1", calldata)).to
-      .be.reverted;
+      .approve(miningEco.address, this.balancePM.toString());
+    await expect(
+      miningEco.new_project(0, projectId, max.toString(), "test1", calldata)
+    ).to.be.reverted;
   });
 
   it("wrong phase duration", async function () {
@@ -259,16 +261,16 @@ describe("MiningEco", function () {
     const projectId = "0x" + cryptoRandomString({ length: 64 });
     const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
-    const max = "10000000000000000000000000";
-    const min = "2000000000000000000000000";
+    const max = D18.mul(new BN(1000000));
+    const min = D18.mul(new BN(800000));
     const raiseStart = 100;
     const raiseEnd = 200;
     const insuranceDeadline = 300;
     const repayDeadline = 1000;
     const profitRate = 1000;
     const phases = [
-      [201, 210, "1000000000000000000000000"],
-      [250, 230, "1000000000000000000000000"],
+      [201, 210, 80],
+      [250, 230, 20],
     ];
     const replanGrants = [pm.address];
     const calldata = ProjectTemplate.interface.encodeFunctionData(
@@ -277,8 +279,8 @@ describe("MiningEco", function () {
         pm.address,
         raiseStart,
         raiseEnd,
-        min,
-        max,
+        min.toString(),
+        max.toString(),
         insuranceDeadline,
         repayDeadline,
         profitRate,
@@ -288,8 +290,9 @@ describe("MiningEco", function () {
     );
     await this.dada
       .connect(pm)
-      .approve(miningEco.address, "50000000000000000000000");
-    await expect(miningEco.new_project(0, projectId, max, "test1", calldata)).to
-      .be.reverted;
+      .approve(miningEco.address, this.balancePM.toString());
+    await expect(
+      miningEco.new_project(0, projectId, max.toString(), "test1", calldata)
+    ).to.be.reverted;
   });
 });

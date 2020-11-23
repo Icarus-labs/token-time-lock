@@ -11,8 +11,8 @@ describe("ProjectTemplate", function () {
     this.dada = await StakingToken.deploy(
       "DaDa Token",
       "DADA",
-      DADA_TOTAL_SUPPLY,
-      DADA_TOTAL_SUPPLY
+      DADA_TOTAL_SUPPLY.toString(),
+      DADA_TOTAL_SUPPLY.toString()
     );
 
     const [admin, platformManager, pm, other] = await ethers.getSigners();
@@ -36,24 +36,22 @@ describe("ProjectTemplate", function () {
 
     this.miningEco = miningEco.attach(proxy.address);
 
-    const initAmount = new BN(5000).mul(D18);
-    await this.dada.mint(initAmount);
-    await this.dada.transfer(pm.address, initAmount);
-    await this.dada.mint(initAmount);
-    await this.dada.transfer(other.address, initAmount);
+    this.balancePM = new BN(5000).mul(D18);
+    await this.dada.mint(this.balancePM.toString());
+    await this.dada.transfer(pm.address, this.balancePM.toString());
 
     const miningEcoPM = this.miningEco.connect(pm);
     const projectId = "0x" + cryptoRandomString({ length: 64 });
     const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
-    const max = new BN("1000000000000000000000000");
+    const max = D18.mul(new BN(1000000));
     const min = max.mul(new BN(8)).div(new BN(10));
     const raiseStart = 100;
     const raiseEnd = 200;
     const insuranceDeadline = 300;
     const repayDeadline = 1000;
     const profitRate = 1000;
-    const phases = [[100, 200, max.div(new BN(4))]];
+    const phases = [[100, 200, 100]];
     const replanGrants = [pm.address];
     const calldata = ProjectTemplate.interface.encodeFunctionData(
       initializeFrgmt,
@@ -61,8 +59,8 @@ describe("ProjectTemplate", function () {
         pm.address,
         raiseStart,
         raiseEnd,
-        min,
-        max,
+        min.toString(),
+        max.toString(),
         insuranceDeadline,
         repayDeadline,
         profitRate,
@@ -72,8 +70,14 @@ describe("ProjectTemplate", function () {
     );
     await this.dada
       .connect(pm)
-      .approve(miningEcoPM.address, "50000000000000000000000");
-    sent = await miningEcoPM.new_project(0, projectId, max, "test1", calldata);
+      .approve(miningEcoPM.address, this.balancePM.toString());
+    sent = await miningEcoPM.new_project(
+      0,
+      projectId,
+      max.toString(),
+      "test1",
+      calldata
+    );
     await sent.wait(1);
     let project = await miningEcoPM.projects(projectId);
     expect(project.owner).to.equal(pm.address);

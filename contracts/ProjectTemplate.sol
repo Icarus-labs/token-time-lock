@@ -18,7 +18,7 @@ struct VotingReceipt {
 struct PhaseInfo {
     uint256 start; // start block number
     uint256 end; // end block number
-    uint256 amount; // amount of token that would be transfered to project owner after phase succeeds
+    uint256 percent; // percent of token that would be transfered to project owner after phase succeeds
 }
 
 struct VotesRecord {
@@ -30,7 +30,7 @@ struct VotesRecord {
 struct VotingPhase {
     uint256 start;
     uint256 end;
-    uint256 amount;
+    uint256 percent;
     bool closed;
     bool result;
     bool claimed;
@@ -59,6 +59,7 @@ contract ProjectTemplate is BaseProjectTemplate {
 
     uint256 public constant FAILED_PHASE_MAX = 2;
 
+    uint256 public actual_raised;
     uint256 public min_amount;
     uint256 public raise_start;
     uint256 public raise_end;
@@ -169,9 +170,9 @@ contract ProjectTemplate is BaseProjectTemplate {
         PhaseInfo[] memory _phases,
         address[] calldata _replan_grants
     ) public nonReentrant onlyOwner projectJustCreated {
-        uint256 total_amount = 0;
+        uint256 total_percent = 0;
         for (uint256 i = 0; i < _phases.length; i++) {
-            total_amount = total_amount.add(_phases[i].amount);
+            total_percent = total_percent.add(_phases[i].percent);
             require(_phases[i].start < _phases[i].end);
             if (i + 1 < _phases.length) {
                 require(_phases[i].end <= _phases[i + 1].start);
@@ -181,7 +182,7 @@ contract ProjectTemplate is BaseProjectTemplate {
                 VotingPhase({
                     start: _phases[i].start,
                     end: _phases[i].end,
-                    amount: _phases[i].amount,
+                    percent: _phases[i].percent,
                     closed: i == 0,
                     result: i == 0,
                     claimed: false,
@@ -190,7 +191,7 @@ contract ProjectTemplate is BaseProjectTemplate {
                 })
             );
         }
-        require(total_amount >= _min && total_amount <= _max);
+        require(total_percent == 100);
         fund_receiver = _recv;
         raise_start = _raise_start;
         raise_end = _raise_end;
@@ -230,15 +231,15 @@ contract ProjectTemplate is BaseProjectTemplate {
     function _replan(PhaseInfo[] memory _phases) internal {
         uint256 phase_left = phases.length - uint256(current_phase);
         require(_phases.length == phase_left);
-        uint256 total_amount_left;
+        uint256 total_percent_left;
         for (uint256 i = uint256(current_phase); i < phases.length; i++) {
-            total_amount_left = total_amount_left.add(phases[i].amount);
+            total_percent_left = total_percent_left.add(phases[i].percent);
         }
-        uint256 total_amount_new;
+        uint256 total_percent_new;
         for (uint256 j = 0; j < _phases.length; j++) {
-            total_amount_new = total_amount_new.add(_phases[j].amount);
+            total_percent_new = total_percent_new.add(_phases[j].percent);
         }
-        require(total_amount_left == total_amount_new);
+        require(total_percent_left == total_percent_new);
         uint256 checkpoint = block.number + BLOCKS_PER_DAY * REPLAN_NOTICE;
         uint256 deadline = checkpoint + BLOCKS_PER_DAY * REPLAN_VOTE_WINDOW;
         require(_phases[0].start >= deadline);
@@ -248,7 +249,7 @@ contract ProjectTemplate is BaseProjectTemplate {
                 VotingPhase({
                     start: _phases[i].start,
                     end: _phases[i].end,
-                    amount: _phases[i].amount,
+                    percent: _phases[i].percent,
                     closed: false,
                     result: false,
                     claimed: false,
@@ -283,7 +284,7 @@ contract ProjectTemplate is BaseProjectTemplate {
 
     function _heartbeat_collecting() internal {
         if (block.number >= raise_end) {
-            if (totalSupply >= min_amount && totalSupply <= max_amount) {
+            if (actual_raised >= min_amount && actual_raised <= max_amount) {
                 status = ProjectStatus.Succeeded;
                 emit ProjectSucceeded(id);
             } else {
@@ -296,8 +297,8 @@ contract ProjectTemplate is BaseProjectTemplate {
     function _heartbeat_succeeded() internal {
         VotingPhase memory first_vp = phases[0];
         if (block.number >= raise_end && promised_repay == 0) {
-            promised_repay = totalSupply.add(
-                totalSupply.mul(profit_rate).div(10000)
+            promised_repay = actual_raised.add(
+                actual_raised.mul(profit_rate).div(10000)
             );
         }
         if (block.number > insurance_deadline && insurance_paid == false) {
@@ -421,8 +422,12 @@ contract ProjectTemplate is BaseProjectTemplate {
     {
         heartbeat();
         require(status == ProjectStatus.Collecting);
-        require(max_amount >= totalSupply + amount);
+        require(max_amount > totalSupply);
+        if (max_amount < totalSupply + amount) {
+            amount = max_amount - totalSupply;
+        }
         _mint(account, amount);
+        actual_raised = actual_raised.add(amount);
     }
 
     function refund() public nonReentrant {
@@ -439,7 +444,7 @@ contract ProjectTemplate is BaseProjectTemplate {
         require(status == ProjectStatus.Liquidating);
         uint256 amount = _balances[msg.sender];
         require(amount > 0);
-        uint256 l_amount = _locked_investment().mul(amount).div(totalSupply);
+        uint256 l_amount = _locked_investment().mul(amount).div(actual_raised);
         USDT_address.safeTransfer(msg.sender, l_amount);
         _transfer(msg.sender, address(this), amount);
     }
@@ -505,7 +510,10 @@ contract ProjectTemplate is BaseProjectTemplate {
                 if (fund_receiver != address(0)) {
                     recv_address = fund_receiver;
                 }
-                USDT_address.safeTransfer(recv_address, vp.amount);
+                USDT_address.safeTransfer(
+                    recv_address,
+                    actual_raised.mul(vp.percent).div(100)
+                );
             }
         }
     }
@@ -563,7 +571,7 @@ contract ProjectTemplate is BaseProjectTemplate {
     function _check_vote_result() internal {
         VotingPhase storage vp = phases[uint256(current_phase)];
         if (!vp.closed) {
-            if (vp.votes.against_votes > totalSupply.div(2)) {
+            if (vp.votes.against_votes > actual_raised.div(2)) {
                 _when_phase_been_denied(uint256(current_phase));
             } else if (block.number >= vp.end) {
                 _when_phase_been_passed(uint256(current_phase));
@@ -574,7 +582,7 @@ contract ProjectTemplate is BaseProjectTemplate {
     // if replan vote gets passed, project status becomes Rolling
     // otherwise, ReplanFailed
     function _check_replan_vote_result() internal {
-        uint256 polka = totalSupply.mul(2).div(3);
+        uint256 polka = actual_raised.mul(2).div(3);
         if (replan_votes.votes.for_votes > polka) {
             // succeed
             failed_replan_count = 0;
@@ -586,7 +594,7 @@ contract ProjectTemplate is BaseProjectTemplate {
                     VotingPhase({
                         start: replan_votes.new_phases[i].start,
                         end: replan_votes.new_phases[i].end,
-                        amount: replan_votes.new_phases[i].amount,
+                        percent: replan_votes.new_phases[i].percent,
                         closed: false,
                         result: false,
                         claimed: false,
@@ -598,7 +606,7 @@ contract ProjectTemplate is BaseProjectTemplate {
             _reset_replan_votes();
             status = ProjectStatus.Rolling;
         } else if (
-            replan_votes.votes.against_votes >= totalSupply.sub(polka) ||
+            replan_votes.votes.against_votes >= actual_raised.sub(polka) ||
             block.number >= replan_votes.deadline
         ) {
             // fail
@@ -620,7 +628,10 @@ contract ProjectTemplate is BaseProjectTemplate {
         if (fund_receiver != address(0)) {
             receiver = fund_receiver;
         }
-        USDT_address.safeTransfer(receiver, vp.amount);
+        USDT_address.safeTransfer(
+            receiver,
+            actual_raised.mul(vp.percent).div(100)
+        );
     }
 
     // _when_phase_been_denied should only be executed only once
@@ -661,7 +672,7 @@ contract ProjectTemplate is BaseProjectTemplate {
     function _locked_investment() internal view returns (uint256) {
         uint256 total = 0;
         for (uint256 i = uint256(current_phase); i < phases.length; i++) {
-            total = total.add(phases[i].amount);
+            total = total.add(actual_raised.mul(phases[i].percent).div(100));
         }
         return total;
     }
