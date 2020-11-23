@@ -40,23 +40,17 @@ contract MiningEco is HasConstantSlots {
     mapping(uint256 => string) public templates;
 
     modifier projectIdExists(bytes32 id) {
-        require(
-            projects[id].addr != address(0),
-            "MiningEco: project doesn't exist"
-        );
+        require(projects[id].addr != address(0));
         _;
     }
 
     modifier projectAddressExists(address addr) {
-        require(
-            projects_by_address[addr] != bytes32(0),
-            "MiningEco: project doesn't exist"
-        );
+        require(projects_by_address[addr] != bytes32(0));
         _;
     }
 
     modifier templateIdExists(uint256 id) {
-        require(id == 0, "MiningEco: template doesn't exist");
+        require(id == 0);
         _;
     }
 
@@ -72,33 +66,24 @@ contract MiningEco is HasConstantSlots {
         assembly {
             manager := sload(slot)
         }
-        require(
-            msg.sender == manager,
-            "MiningEco: only platform manager can call"
-        );
+        require(msg.sender == manager);
         _;
     }
 
     modifier uniqueProjectId(bytes32 id) {
-        require(
-            projects[id].addr == address(0),
-            "MiningEco: project id is not unique"
-        );
+        require(projects[id].addr == address(0));
         _;
     }
 
     function initialize(address token, address payable vault) public {
-        require(!initialized, "MiningEco: has been initialized");
+        require(!initialized);
         address adm;
         bytes32 slot = _ADMIN_SLOT;
         // solhint-disable-next-line no-inline-assembly
         assembly {
             adm := sload(slot)
         }
-        require(
-            adm != address(0),
-            "MiningEco: initialize should only called by MiningEcoProxy"
-        );
+        require(adm != address(0));
 
         platform_token = token;
         insurance_vault = vault;
@@ -186,10 +171,10 @@ contract MiningEco is HasConstantSlots {
         projects[project_id] = p;
         projects_by_address[project_addr] = project_id;
         append_new_project_to_user(msg.sender, project_id);
-
         if (init_calldata.length > 0) {
             project_addr.functionCall(init_calldata);
         }
+        BaseProjectTemplate(project_addr).transferOwnership(msg.sender);
     }
 
     function append_new_project_to_user(address user, bytes32 pid) internal {
@@ -210,37 +195,37 @@ contract MiningEco is HasConstantSlots {
         bytes memory bytecode =
             abi.encodePacked(
                 creationCode,
-                abi.encode(address(this)),
-                abi.encode(project_id),
-                abi.encode(symbol)
+                abi.encode(address(this), project_id, symbol)
             );
         // this is where the salt can be imported
         // bytes32 salt = keccak256(
         //     abi.encodePacked(owner, template_id, project_id)
         // );
-        bytes32 salt = project_id;
         address predict =
             address(
-                uint256(
-                    keccak256(
-                        abi.encodePacked(
-                            bytes1(0xff),
-                            address(this),
-                            salt,
-                            keccak256(bytecode)
+                uint160(
+                    uint256(
+                        keccak256(
+                            abi.encodePacked(
+                                bytes1(0xff),
+                                address(this),
+                                uint256(project_id),
+                                keccak256(bytecode)
+                            )
                         )
                     )
                 )
             );
-        require(!predict.isContract(), "MiningEco: address is already taken");
+        require(!predict.isContract());
         assembly {
-            p_addr := create2(0, add(bytecode, 32), mload(bytecode), salt)
+            p_addr := create2(
+                0,
+                add(bytecode, 0x20),
+                mload(bytecode),
+                project_id
+            )
         }
-        require(
-            predict == p_addr,
-            "MiningEco: new contract prediction is wrong"
-        );
-        BaseProjectTemplate(p_addr).transferOwnership(owner);
+        require(predict == p_addr);
         return p_addr;
     }
 }

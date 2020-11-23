@@ -194,10 +194,19 @@ contract ProjectTemplate is BaseProjectTemplate {
         for (uint256 i = 0; i < _phases.length; i++) {
             total_amount = total_amount.add(_phases[i].amount);
             require(_phases[i].start < _phases[i].end);
-            phases[i].start = _phases[i].start;
-            phases[i].end = _phases[i].end;
-            phases[i].amount = _phases[i].amount;
-            phases[i].success_tally = _phases[i].success_tally;
+            phases.push(
+                VotingPhase({
+                    start: _phases[i].start,
+                    end: _phases[i].end,
+                    amount: _phases[i].amount,
+                    success_tally: _phases[i].success_tally,
+                    closed: false,
+                    result: false,
+                    claimed: false,
+                    processed: false,
+                    votes: VotesRecord({for_votes: 0, against_votes: 0})
+                })
+            );
         }
         require(total_amount >= _min && total_amount <= _max);
         raise_start = _raise_start;
