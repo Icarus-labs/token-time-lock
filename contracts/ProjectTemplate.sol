@@ -18,7 +18,6 @@ struct VotingReceipt {
 struct PhaseInfo {
     uint256 start; // start block number
     uint256 end; // end block number
-    uint256 success_tally; // votes that needed for success
     uint256 amount; // amount of token that would be transfered to project owner after phase succeeds
 }
 
@@ -31,7 +30,6 @@ struct VotesRecord {
 struct VotingPhase {
     uint256 start;
     uint256 end;
-    uint256 success_tally;
     uint256 amount;
     bool closed;
     bool result;
@@ -130,7 +128,7 @@ contract ProjectTemplate is BaseProjectTemplate {
         who_can_replan[a] = true;
     }
 
-    function set_fund_rceiver(address recv) public onlyOwner {
+    function set_fund_receiver(address recv) public onlyOwner {
         fund_receiver = recv;
     }
 
@@ -168,53 +166,9 @@ contract ProjectTemplate is BaseProjectTemplate {
         uint256 _insurance_deadline,
         uint256 _repay_deadline,
         uint256 _profit_rate,
-        PhaseInfo[] memory _phases
+        PhaseInfo[] memory _phases,
+        address[] calldata _replan_grants
     ) public nonReentrant onlyOwner projectJustCreated {
-        fund_receiver = _recv;
-        _init(
-            _raise_start,
-            _raise_end,
-            _min,
-            _max,
-            _insurance_deadline,
-            _repay_deadline,
-            _profit_rate,
-            _phases
-        );
-    }
-
-    function initialize(
-        uint256 _raise_start,
-        uint256 _raise_end,
-        uint256 _min,
-        uint256 _max,
-        uint256 _insurance_deadline,
-        uint256 _repay_deadline,
-        uint256 _profit_rate,
-        PhaseInfo[] memory _phases
-    ) public nonReentrant onlyOwner projectJustCreated {
-        _init(
-            _raise_start,
-            _raise_end,
-            _min,
-            _max,
-            _insurance_deadline,
-            _repay_deadline,
-            _profit_rate,
-            _phases
-        );
-    }
-
-    function _init(
-        uint256 _raise_start,
-        uint256 _raise_end,
-        uint256 _min,
-        uint256 _max,
-        uint256 _insurance_deadline,
-        uint256 _repay_deadline,
-        uint256 _profit_rate,
-        PhaseInfo[] memory _phases
-    ) internal {
         uint256 total_amount = 0;
         for (uint256 i = 0; i < _phases.length; i++) {
             total_amount = total_amount.add(_phases[i].amount);
@@ -222,14 +176,14 @@ contract ProjectTemplate is BaseProjectTemplate {
             if (i + 1 < _phases.length) {
                 require(_phases[i].end <= _phases[i + 1].start);
             }
+            // first phase is set to success by default
             phases.push(
                 VotingPhase({
                     start: _phases[i].start,
                     end: _phases[i].end,
                     amount: _phases[i].amount,
-                    success_tally: _phases[i].success_tally,
-                    closed: false,
-                    result: false,
+                    closed: i == 0,
+                    result: i == 0,
                     claimed: false,
                     processed: false,
                     votes: VotesRecord({for_votes: 0, against_votes: 0})
@@ -237,6 +191,7 @@ contract ProjectTemplate is BaseProjectTemplate {
             );
         }
         require(total_amount >= _min && total_amount <= _max);
+        fund_receiver = _recv;
         raise_start = _raise_start;
         raise_end = _raise_end;
         min_amount = _min;
@@ -245,6 +200,9 @@ contract ProjectTemplate is BaseProjectTemplate {
         repay_deadline = _repay_deadline;
         profit_rate = _profit_rate;
         status = ProjectStatus.Initialized;
+        for (uint256 i = 0; i < _replan_grants.length; i++) {
+            who_can_replan[_replan_grants[i]] = true;
+        }
     }
 
     function replan(PhaseInfo[] calldata _phases)
@@ -284,7 +242,26 @@ contract ProjectTemplate is BaseProjectTemplate {
         uint256 checkpoint = block.number + BLOCKS_PER_DAY * REPLAN_NOTICE;
         uint256 deadline = checkpoint + BLOCKS_PER_DAY * REPLAN_VOTE_WINDOW;
         require(_phases[0].start >= deadline);
-        _setup_vote_for_replan(_phases, checkpoint, deadline);
+        _reset_replan_votes();
+        for (uint256 i = 0; i < _phases.length; i++) {
+            replan_votes.new_phases.push(
+                VotingPhase({
+                    start: _phases[i].start,
+                    end: _phases[i].end,
+                    amount: _phases[i].amount,
+                    closed: false,
+                    result: false,
+                    claimed: false,
+                    processed: false,
+                    votes: VotesRecord({for_votes: 0, against_votes: 0})
+                })
+            );
+        }
+        replan_votes.checkpoint = checkpoint;
+        replan_votes.deadline = deadline;
+        if (block.number >= checkpoint) {
+            status = ProjectStatus.ReplanVoting;
+        }
     }
 
     function _reset_replan_votes() internal {
@@ -294,145 +271,124 @@ contract ProjectTemplate is BaseProjectTemplate {
         delete replan_votes.new_phases;
     }
 
-    function _setup_vote_for_replan(
-        PhaseInfo[] memory _phases,
-        uint256 checkpoint,
-        uint256 deadline
-    ) internal {
-        _reset_replan_votes();
-        for (uint256 i = 0; i < _phases.length; i++) {
-            replan_votes.new_phases[i].start = _phases[i].start;
-            replan_votes.new_phases[i].end = _phases[i].end;
-            replan_votes.new_phases[i].amount = _phases[i].amount;
-            replan_votes.new_phases[i].success_tally = _phases[i].success_tally;
+    function _heartbeat_initialized() internal {
+        if (block.number >= raise_start && block.number < raise_end) {
+            status = ProjectStatus.Collecting;
+            emit ProjectCollecting(id);
+        } else if (block.number >= raise_end) {
+            status = ProjectStatus.Failed;
+            emit ProjectFailed(id);
         }
-        replan_votes.checkpoint = checkpoint;
-        replan_votes.deadline = deadline;
-        if (block.number >= checkpoint) {
+    }
+
+    function _heartbeat_collecting() internal {
+        if (block.number >= raise_end) {
+            if (totalSupply >= min_amount && totalSupply <= max_amount) {
+                status = ProjectStatus.Succeeded;
+                emit ProjectSucceeded(id);
+            } else {
+                status = ProjectStatus.Refunding;
+                emit ProjectRefunding(id);
+            }
+        }
+    }
+
+    function _heartbeat_succeeded() internal {
+        VotingPhase memory first_vp = phases[0];
+        if (block.number >= raise_end && promised_repay == 0) {
+            promised_repay = totalSupply.add(
+                totalSupply.mul(profit_rate).div(10000)
+            );
+        }
+        if (block.number > insurance_deadline && insurance_paid == false) {
+            status = ProjectStatus.Refunding;
+            emit ProjectInsuranceFailure(id);
+            emit ProjectRefunding(id);
+        } else if (block.number >= first_vp.start) {
+            status = ProjectStatus.Rolling;
+            current_phase = 0;
+            emit ProjectRolling(id);
+            emit ProjectPhaseChange(id, uint256(current_phase));
+        }
+    }
+
+    function _heartbeat_rolling() internal {
+        VotingPhase storage current_vp = phases[uint256(current_phase)];
+        if (!current_vp.closed) {
+            if (block.number >= current_vp.end) {
+                _when_phase_been_passed(uint256(current_phase));
+            }
+        } else {
+            if (!current_vp.result) {
+                _when_phase_been_denied(uint256(current_phase));
+            } else {
+                if (uint256(current_phase) < phases.length - 1) {
+                    int256 next_phase = current_phase + 1;
+                    VotingPhase storage next_vp = phases[uint256(next_phase)];
+                    if (block.number >= next_vp.start) {
+                        current_phase = next_phase;
+                        emit ProjectPhaseChange(id, uint256(current_phase));
+                    }
+                } else {
+                    if (block.number > current_vp.end) {
+                        status = ProjectStatus.AllPhasesDone;
+                        // move beyond valid phases
+                        // easier to just claim all phases before current_phase
+                        current_phase += 1;
+                        emit ProjectAllPhasesDone(id);
+                    }
+                }
+            }
+        }
+    }
+
+    function _heartbeat_phasefailed() internal {
+        if (block.number >= phase_replan_deadline) {
+            status = ProjectStatus.Liquidating;
+            emit ProjectLiquidating(id);
+        } else if (
+            replan_votes.checkpoint > 0 &&
+            block.number >= replan_votes.checkpoint
+        ) {
             status = ProjectStatus.ReplanVoting;
+            emit ProjectReplanVoting(id);
+        }
+    }
+
+    function _heartbeat_replanvoting() internal {
+        if (block.number >= replan_votes.deadline) {
+            failed_replan_count += 1;
+            if (failed_replan_count >= 2) {
+                status = ProjectStatus.Liquidating;
+                emit ProjectLiquidating(id);
+            } else {
+                status = ProjectStatus.ReplanFailed;
+                phase_replan_deadline = _create_phase_replan_deadline();
+                emit ProjectReplanFailed(id);
+            }
         }
     }
 
     function heartbeat() public override nonReentrant {
-        uint256 blocknumber = block.number;
-        VotingPhase storage first_vp = phases[0];
-
         if (status == ProjectStatus.Initialized) {
-            if (blocknumber >= raise_start && blocknumber < raise_end) {
-                status = ProjectStatus.Collecting;
-                emit ProjectCollecting(id);
-            } else if (blocknumber >= raise_end) {
-                status = ProjectStatus.Failed;
-                emit ProjectFailed(id);
-            }
-            return;
-        }
-
-        if (status == ProjectStatus.Collecting) {
-            if (totalSupply >= min_amount) {
-                status = ProjectStatus.Succeeded;
-                emit ProjectSucceeded(id);
-            } else if (blocknumber >= raise_end) {
-                status = ProjectStatus.Refunding;
-                emit ProjectRefunding(id);
-            }
-            return;
-        }
-
-        if (
+            _heartbeat_initialized();
+        } else if (status == ProjectStatus.Collecting) {
+            _heartbeat_collecting();
+        } else if (
             status == ProjectStatus.Refunding &&
             USDT_address.balanceOf(address(this)) == 0
         ) {
             status = ProjectStatus.Failed;
             emit ProjectFailed(id);
-            return;
-        }
-
-        if (status == ProjectStatus.Succeeded) {
-            if (blocknumber >= raise_end && promised_repay == 0) {
-                promised_repay = totalSupply.add(
-                    totalSupply.mul(profit_rate).div(10000)
-                );
-            }
-            if (blocknumber > insurance_deadline && insurance_paid == false) {
-                status = ProjectStatus.Refunding;
-                emit ProjectInsuranceFailure(id);
-                emit ProjectRefunding(id);
-            } else if (blocknumber >= first_vp.start) {
-                status = ProjectStatus.Rolling;
-                current_phase = 0;
-                emit ProjectRolling(id);
-                emit ProjectPhaseChange(id, uint256(current_phase));
-            }
-            return;
-        }
-
-        if (status == ProjectStatus.Rolling) {
-            VotingPhase storage current_vp = phases[uint256(current_phase)];
-            if (!current_vp.closed) {
-                if (blocknumber >= current_vp.end) {
-                    _phase_fail(uint256(current_phase));
-                    return;
-                }
-            } else {
-                if (!current_vp.result) {
-                    _phase_fail(uint256(current_phase));
-                    return;
-                } else {
-                    if (uint256(current_phase) == phases.length - 1) {
-                        if (blocknumber > current_vp.end) {
-                            status = ProjectStatus.AllPhasesDone;
-                            // move beyond valid phases
-                            // easier to just claim all phases before current_phase
-                            current_phase += 1;
-                            emit ProjectAllPhasesDone(id);
-                            return;
-                        }
-                    } else if (uint256(current_phase) < phases.length - 1) {
-                        int256 next_phase = current_phase + 1;
-                        VotingPhase storage next_vp =
-                            phases[uint256(next_phase)];
-                        if (blocknumber >= next_vp.start) {
-                            current_phase = next_phase;
-                            emit ProjectPhaseChange(id, uint256(current_phase));
-                            return;
-                        }
-                    }
-                }
-            }
-            return;
-        }
-
-        if (status == ProjectStatus.PhaseFailed) {
-            if (block.number >= phase_replan_deadline) {
-                status = ProjectStatus.Liquidating;
-                emit ProjectLiquidating(id);
-            } else if (
-                replan_votes.checkpoint > 0 &&
-                block.number >= replan_votes.checkpoint
-            ) {
-                status = ProjectStatus.ReplanVoting;
-                emit ProjectReplanVoting(id);
-            }
-            return;
-        }
-
-        if (status == ProjectStatus.ReplanVoting) {
-            if (block.number >= replan_votes.deadline) {
-                failed_replan_count += 1;
-                if (failed_replan_count >= 2) {
-                    status = ProjectStatus.Liquidating;
-                    emit ProjectLiquidating(id);
-                } else {
-                    status = ProjectStatus.ReplanFailed;
-                    phase_replan_deadline = _create_phase_replan_deadline();
-                    emit ProjectReplanFailed(id);
-                }
-            }
-            return;
-        }
-
-        if (status == ProjectStatus.ReplanFailed) {
+        } else if (status == ProjectStatus.Succeeded) {
+            _heartbeat_succeeded();
+        } else if (status == ProjectStatus.Rolling) {
+            _heartbeat_rolling();
+        } else if (status == ProjectStatus.PhaseFailed) {
+            _heartbeat_phasefailed();
+        } else if (status == ProjectStatus.ReplanVoting) {
+            _heartbeat_replanvoting();
+        } else if (status == ProjectStatus.ReplanFailed) {
             if (
                 failed_replan_count >= 2 ||
                 block.number >= phase_replan_deadline
@@ -440,26 +396,19 @@ contract ProjectTemplate is BaseProjectTemplate {
                 status = ProjectStatus.Liquidating;
                 emit ProjectLiquidating(id);
             }
-            return;
-        }
-
-        if (status == ProjectStatus.Liquidating) {
+        } else if (status == ProjectStatus.Liquidating) {
             if (USDT_address.balanceOf(address(this)) == 0) {
                 status = ProjectStatus.Failed;
                 emit ProjectFailed(id);
             }
-            return;
-        }
-
-        if (status == ProjectStatus.AllPhasesDone) {
+        } else if (status == ProjectStatus.AllPhasesDone) {
             if (
-                blocknumber < repay_deadline &&
+                block.number < repay_deadline &&
                 USDT_address.balanceOf(address(this)) >= promised_repay
             ) {
                 status = ProjectStatus.Repaying;
                 emit ProjectRepaying(id);
             }
-            return;
         }
     }
 
@@ -479,38 +428,26 @@ contract ProjectTemplate is BaseProjectTemplate {
     function refund() public nonReentrant {
         heartbeat();
         require(status == ProjectStatus.Refunding);
-        _refund(msg.sender);
+        uint256 amount = _balances[msg.sender];
+        require(amount > 0);
+        USDT_address.safeTransfer(msg.sender, amount);
+        _transfer(msg.sender, address(this), amount);
     }
 
     function liquidate() public nonReentrant {
         heartbeat();
         require(status == ProjectStatus.Liquidating);
-        _liquidate(msg.sender);
-    }
-
-    function _refund(address account) internal {
-        uint256 amount = _balances[account];
-        require(amount > 0);
-        USDT_address.safeTransfer(account, amount);
-        _transfer(account, address(this), amount);
-    }
-
-    function _liquidate(address account) internal {
-        uint256 amount = _balances[account];
+        uint256 amount = _balances[msg.sender];
         require(amount > 0);
         uint256 l_amount = _locked_investment().mul(amount).div(totalSupply);
-        USDT_address.safeTransfer(account, l_amount);
-        _transfer(account, address(this), amount);
+        USDT_address.safeTransfer(msg.sender, l_amount);
+        _transfer(msg.sender, address(this), amount);
     }
 
     function repay() public nonReentrant {
         heartbeat();
         require(status == ProjectStatus.Repaying);
-        _repay(msg.sender);
-    }
-
-    function _repay(address account) internal {
-        uint256 amount = _balances[account];
+        uint256 amount = _balances[msg.sender];
         require(amount > 0);
         uint256 profit_total = amount.mul(profit_rate).div(10000).add(amount);
         uint256 this_usdt_balance = USDT_address.balanceOf(address(this));
@@ -518,19 +455,21 @@ contract ProjectTemplate is BaseProjectTemplate {
         if (profit_total > this_usdt_balance) {
             profit_total = this_usdt_balance;
         }
-        _transfer(account, address(this), amount);
-        USDT_address.safeTransfer(account, profit_total);
+        _transfer(msg.sender, address(this), amount);
+        USDT_address.safeTransfer(msg.sender, profit_total);
     }
 
-    function vote(uint256 phase_id, bool support) public nonReentrant {
+    function vote_against_phase(uint256 phase_id) public nonReentrant {
         heartbeat();
-        require(status == ProjectStatus.Rolling);
-        require(uint256(current_phase) == phase_id);
-        _cast_vote(msg.sender, phase_id, support);
+        require(
+            status == ProjectStatus.Rolling &&
+                uint256(current_phase) == phase_id
+        );
+        _cast_vote(msg.sender, phase_id, false);
         _check_vote_result();
     }
 
-    function vote_replan(bool support) public nonReentrant {
+    function vote_for_replan() public nonReentrant {
         heartbeat();
         require(status == ProjectStatus.ReplanVoting);
         require(replan_votes.new_phases.length > 0);
@@ -538,7 +477,7 @@ contract ProjectTemplate is BaseProjectTemplate {
             block.number >= replan_votes.checkpoint &&
                 block.number < replan_votes.deadline
         );
-        _cast_replan_vote(msg.sender, support);
+        _cast_replan_vote(msg.sender, true);
         _check_replan_vote_result();
     }
 
@@ -554,7 +493,7 @@ contract ProjectTemplate is BaseProjectTemplate {
 
     // owner can claim all phases that before current phase
     function claim() public onlyOwner {
-        for (uint256 i = 0; i < uint256(current_phase); i++) {
+        for (uint256 i = 0; i <= uint256(current_phase); i++) {
             VotingPhase storage vp = phases[i];
             require(vp.closed && vp.result);
             if (vp.claimed) {
@@ -577,22 +516,17 @@ contract ProjectTemplate is BaseProjectTemplate {
         bool support
     ) internal {
         require(uint256(current_phase) == phase_id);
-
         VotingPhase storage vp = phases[phase_id];
         require(!vp.closed);
-
         VotingReceipt storage receipt = vp.votes.receipts[voter];
         require(receipt.hasVoted == false);
-
         uint256 votes = getPriorVotes(voter, vp.start);
         require(votes > 0);
-
         if (support) {
             vp.votes.for_votes = vp.votes.for_votes.add(votes);
         } else {
             vp.votes.against_votes = vp.votes.against_votes.add(votes);
         }
-
         receipt.hasVoted = true;
         receipt.support = support;
         receipt.votes = votes;
@@ -629,16 +563,10 @@ contract ProjectTemplate is BaseProjectTemplate {
     function _check_vote_result() internal {
         VotingPhase storage vp = phases[uint256(current_phase)];
         if (!vp.closed) {
-            if (vp.votes.for_votes >= vp.success_tally) {
-                vp.closed = true;
-                vp.result = true;
-                _when_phase_been_approved(uint256(current_phase));
-            } else if (
-                vp.votes.against_votes >= totalSupply.sub(vp.success_tally)
-            ) {
-                vp.closed = true;
-                vp.result = false;
+            if (vp.votes.against_votes > totalSupply.div(2)) {
                 _when_phase_been_denied(uint256(current_phase));
+            } else if (block.number >= vp.end) {
+                _when_phase_been_passed(uint256(current_phase));
             }
         }
     }
@@ -650,26 +578,29 @@ contract ProjectTemplate is BaseProjectTemplate {
         if (replan_votes.votes.for_votes > polka) {
             // succeed
             failed_replan_count = 0;
-            for (uint256 i = 0; i < replan_votes.new_phases.length; i++) {
-                phases[uint256(current_phase) + i].start = replan_votes
-                    .new_phases[i]
-                    .start;
-                phases[uint256(current_phase) + i].end = replan_votes
-                    .new_phases[i]
-                    .end;
-                phases[uint256(current_phase) + i].amount = replan_votes
-                    .new_phases[i]
-                    .amount;
-                phases[uint256(current_phase) + i].success_tally = replan_votes
-                    .new_phases[i]
-                    .success_tally;
-                phases[uint256(current_phase) + i].closed = false;
-                phases[uint256(current_phase) + i].result = false;
-                phases[uint256(current_phase) + i].processed = false;
+            for (uint256 i = uint256(current_phase); i < phases.length; i++) {
+                phases.pop();
             }
-            status = ProjectStatus.Rolling;
+            for (uint256 i = 0; i < replan_votes.new_phases.length; i++) {
+                phases.push(
+                    VotingPhase({
+                        start: replan_votes.new_phases[i].start,
+                        end: replan_votes.new_phases[i].end,
+                        amount: replan_votes.new_phases[i].amount,
+                        closed: false,
+                        result: false,
+                        claimed: false,
+                        processed: false,
+                        votes: VotesRecord({for_votes: 0, against_votes: 0})
+                    })
+                );
+            }
             _reset_replan_votes();
-        } else if (replan_votes.votes.against_votes >= totalSupply.sub(polka)) {
+            status = ProjectStatus.Rolling;
+        } else if (
+            replan_votes.votes.against_votes >= totalSupply.sub(polka) ||
+            block.number >= replan_votes.deadline
+        ) {
             // fail
             failed_replan_count += 1;
             status = ProjectStatus.ReplanFailed;
@@ -677,10 +608,12 @@ contract ProjectTemplate is BaseProjectTemplate {
         }
     }
 
-    // _when_phase_been_approved should only be executed only once
-    function _when_phase_been_approved(uint256 _phase_id) internal {
+    // _when_phase_been_passed should only be executed only once
+    function _when_phase_been_passed(uint256 _phase_id) internal {
         VotingPhase storage vp = phases[_phase_id];
         require(!vp.claimed && !vp.processed);
+        vp.closed = true;
+        vp.result = true;
         vp.claimed = true;
         vp.processed = true;
         address receiver = owner();
@@ -694,28 +627,21 @@ contract ProjectTemplate is BaseProjectTemplate {
     function _when_phase_been_denied(uint256 _phase_id) internal {
         VotingPhase storage vp = phases[_phase_id];
         require(!vp.claimed && !vp.processed);
+        vp.closed = true;
         vp.processed = true;
         failed_phase_count = failed_phase_count.add(1);
         if (failed_phase_count >= FAILED_PHASE_MAX) {
-            _project_fail();
+            status = ProjectStatus.Liquidating;
+            emit ProjectLiquidating(id);
         } else {
-            _phase_fail(uint256(_phase_id));
+            status = ProjectStatus.PhaseFailed;
+            phase_replan_deadline = _create_phase_replan_deadline();
+            emit ProjectPhaseFail(id, uint256(_phase_id));
         }
-    }
-
-    function _phase_fail(uint256 phase_id) internal {
-        status = ProjectStatus.PhaseFailed;
-        phase_replan_deadline = _create_phase_replan_deadline();
-        emit ProjectPhaseFail(id, phase_id);
     }
 
     function _create_phase_replan_deadline() internal view returns (uint256) {
         return block.number + BLOCKS_PER_DAY * 3;
-    }
-
-    function _project_fail() internal {
-        status = ProjectStatus.Liquidating;
-        emit ProjectLiquidating(id);
     }
 
     function _beforeTokenTransfer(

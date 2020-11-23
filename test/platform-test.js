@@ -1,5 +1,9 @@
 const cryptoRandomString = require("crypto-random-string");
 const { assert, expect } = require("chai");
+const BN = require("bn.js");
+
+const DADA_TOTAL_SUPPLY = new BN("10000000000000000000000000");
+const D18 = new BN("1000000000000000000");
 
 describe("Proxy", function () {
   beforeEach(async function () {
@@ -7,8 +11,8 @@ describe("Proxy", function () {
     this.dada = await StakingToken.deploy(
       "DaDa",
       "DADA",
-      "100000000000000000000000",
-      "100000000000000000000000"
+      DADA_TOTAL_SUPPLY,
+      DADA_TOTAL_SUPPLY
     );
   });
 
@@ -43,8 +47,8 @@ describe("MiningEco", function () {
     this.dada = await StakingToken.deploy(
       "DaDa Token",
       "DADA",
-      "10000000000000000000000000",
-      "10000000000000000000000000"
+      DADA_TOTAL_SUPPLY,
+      DADA_TOTAL_SUPPLY
     );
 
     const [admin, platformManager, pm, other] = await ethers.getSigners();
@@ -68,11 +72,9 @@ describe("MiningEco", function () {
 
     this.miningEco = miningEco.attach(proxy.address);
 
-    const initAmount = "50000000000000000000000";
-    await this.dada.mint(initAmount);
-    await this.dada.transfer(pm.address, initAmount);
-    await this.dada.mint(initAmount);
-    await this.dada.transfer(other.address, initAmount);
+    const amount = D18.mul(new BN(10000));
+    await this.dada.mint(amount);
+    await this.dada.transfer(pm.address, amount);
   });
 
   it("platform is initialized", async function () {
@@ -86,20 +88,20 @@ describe("MiningEco", function () {
     const miningEco = this.miningEco.connect(pm);
     const projectId = "0x" + cryptoRandomString({ length: 64 });
     const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
-    const initializeFrgmt = ProjectTemplate.interface.getFunction(
-      "initialize(uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256)[])"
-    );
-    const max = "1000000000000000000000000";
-    const min = "800000000000000000000000";
+    const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
+    const max = D18.mul(new BN(1000000));
+    const min = D18.mul(new BN(800000));
     const raiseStart = 100;
     const raiseEnd = 200;
     const insuranceDeadline = 300;
     const repayDeadline = 1000;
     const profitRate = 1000;
-    const phases = [[201, 202, "0", "1000000000000000000000000"]];
+    const phases = [[201, 202, "1000000000000000000000000"]];
+    const replanGrants = [pm.address];
     const calldata = ProjectTemplate.interface.encodeFunctionData(
       initializeFrgmt,
       [
+        pm.address,
         raiseStart,
         raiseEnd,
         min,
@@ -108,6 +110,7 @@ describe("MiningEco", function () {
         repayDeadline,
         profitRate,
         phases,
+        replanGrants,
       ]
     );
     await this.dada
@@ -134,9 +137,7 @@ describe("MiningEco", function () {
     const miningEco = this.miningEco.connect(pm);
     const projectId = "0x" + cryptoRandomString({ length: 64 });
     const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
-    const initializeFrgmt = ProjectTemplate.interface.getFunction(
-      "initialize(uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256)[])"
-    );
+    const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
     const max = "2000000000000000000000000";
     const min = "800000000000000000000000";
     const raiseStart = 100;
@@ -145,12 +146,14 @@ describe("MiningEco", function () {
     const repayDeadline = 1000;
     const profitRate = 1000;
     const phases = [
-      [201, 210, "0", "1000000000000000000000000"],
-      [209, 220, "0", "1000000000000000000000000"],
+      [201, 210, "1000000000000000000000000"],
+      [209, 220, "1000000000000000000000000"],
     ];
+    const replanGrants = [pm.address];
     const calldata = ProjectTemplate.interface.encodeFunctionData(
       initializeFrgmt,
       [
+        pm.address,
         raiseStart,
         raiseEnd,
         min,
@@ -159,6 +162,7 @@ describe("MiningEco", function () {
         repayDeadline,
         profitRate,
         phases,
+        replanGrants,
       ]
     );
     await this.dada
@@ -173,9 +177,7 @@ describe("MiningEco", function () {
     const miningEco = this.miningEco.connect(pm);
     const projectId = "0x" + cryptoRandomString({ length: 64 });
     const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
-    const initializeFrgmt = ProjectTemplate.interface.getFunction(
-      "initialize(uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256)[])"
-    );
+    const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
     const max = "1000000000000000000000000000";
     const min = "3000000000000000000000000";
     const raiseStart = 100;
@@ -184,12 +186,14 @@ describe("MiningEco", function () {
     const repayDeadline = 1000;
     const profitRate = 1000;
     const phases = [
-      [201, 210, "0", "1000000000000000000000000"],
-      [220, 230, "0", "1000000000000000000000000"],
+      [201, 210, "1000000000000000000000000"],
+      [220, 230, "1000000000000000000000000"],
     ];
+    const replanGrants = [pm.address];
     const calldata = ProjectTemplate.interface.encodeFunctionData(
       initializeFrgmt,
       [
+        pm.address,
         raiseStart,
         raiseEnd,
         min,
@@ -198,6 +202,7 @@ describe("MiningEco", function () {
         repayDeadline,
         profitRate,
         phases,
+        replanGrants,
       ]
     );
     await this.dada
@@ -213,9 +218,7 @@ describe("MiningEco", function () {
     const miningEco = this.miningEco.connect(pm);
     const projectId = "0x" + cryptoRandomString({ length: 64 });
     const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
-    const initializeFrgmt = ProjectTemplate.interface.getFunction(
-      "initialize(uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256)[])"
-    );
+    const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
     const max = "10000000000000000000000000";
     const min = "3000000000000000000000000";
     const raiseStart = 100;
@@ -224,12 +227,14 @@ describe("MiningEco", function () {
     const repayDeadline = 1000;
     const profitRate = 1000;
     const phases = [
-      [201, 210, "0", "1000000000000000000000000"],
-      [220, 230, "0", "1000000000000000000000000"],
+      [201, 210, "1000000000000000000000000"],
+      [220, 230, "1000000000000000000000000"],
     ];
+    const replanGrants = [pm.address];
     const calldata = ProjectTemplate.interface.encodeFunctionData(
       initializeFrgmt,
       [
+        pm.address,
         raiseStart,
         raiseEnd,
         min,
@@ -238,6 +243,7 @@ describe("MiningEco", function () {
         repayDeadline,
         profitRate,
         phases,
+        replanGrants,
       ]
     );
     await this.dada
@@ -252,9 +258,7 @@ describe("MiningEco", function () {
     const miningEco = this.miningEco.connect(pm);
     const projectId = "0x" + cryptoRandomString({ length: 64 });
     const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
-    const initializeFrgmt = ProjectTemplate.interface.getFunction(
-      "initialize(uint256,uint256,uint256,uint256,uint256,uint256,uint256,(uint256,uint256,uint256,uint256)[])"
-    );
+    const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
     const max = "10000000000000000000000000";
     const min = "2000000000000000000000000";
     const raiseStart = 100;
@@ -263,12 +267,14 @@ describe("MiningEco", function () {
     const repayDeadline = 1000;
     const profitRate = 1000;
     const phases = [
-      [201, 210, "0", "1000000000000000000000000"],
-      [250, 230, "0", "1000000000000000000000000"],
+      [201, 210, "1000000000000000000000000"],
+      [250, 230, "1000000000000000000000000"],
     ];
+    const replanGrants = [pm.address];
     const calldata = ProjectTemplate.interface.encodeFunctionData(
       initializeFrgmt,
       [
+        pm.address,
         raiseStart,
         raiseEnd,
         min,
@@ -277,6 +283,7 @@ describe("MiningEco", function () {
         repayDeadline,
         profitRate,
         phases,
+        replanGrants,
       ]
     );
     await this.dada
