@@ -54,7 +54,7 @@ contract ProjectTemplate is BaseProjectTemplate {
     uint256 public constant REPLAN_VOTE_WINDOW = 3;
     uint256 public constant PHASE_KEEPALIVE = 3;
 
-    IERC20 constant USDT_address =
+    IERC20 public USDT_address =
         IERC20(0xdAC17F958D2ee523a2206206994597C13D831ec7);
 
     uint256 public constant FAILED_PHASE_MAX = 2;
@@ -63,8 +63,6 @@ contract ProjectTemplate is BaseProjectTemplate {
     uint256 public min_amount;
     uint256 public raise_start;
     uint256 public raise_end;
-    uint256 public insurance_deadline;
-    bool public insurance_paid;
     int256 public current_phase;
     uint256 public phase_replan_deadline;
     uint256 public repay_deadline;
@@ -108,12 +106,14 @@ contract ProjectTemplate is BaseProjectTemplate {
     constructor(
         address _platform,
         bytes32 id,
-        string memory symbol
+        string memory symbol,
+        address usdt
     ) public BaseProjectTemplate(id) ProjectToken(symbol) {
         platform = _platform;
         status = ProjectStatus.Created;
         current_phase = -1;
         who_can_replan[msg.sender] = true;
+        USDT_address = IERC20(usdt);
     }
 
     function transferOwnership(address a) public virtual override onlyOwner {
@@ -170,6 +170,8 @@ contract ProjectTemplate is BaseProjectTemplate {
         PhaseInfo[] memory _phases,
         address[] calldata _replan_grants
     ) public nonReentrant onlyOwner projectJustCreated {
+        require(_phases.length > 1);
+        require(_phases[0].percent <= 80);
         uint256 total_percent = 0;
         for (uint256 i = 0; i < _phases.length; i++) {
             total_percent = total_percent.add(_phases[i].percent);
@@ -183,7 +185,7 @@ contract ProjectTemplate is BaseProjectTemplate {
                     start: _phases[i].start,
                     end: _phases[i].end,
                     percent: _phases[i].percent,
-                    closed: i == 0,
+                    closed: false,
                     result: i == 0,
                     claimed: false,
                     processed: false,
@@ -315,29 +317,33 @@ contract ProjectTemplate is BaseProjectTemplate {
 
     function _heartbeat_rolling() internal {
         VotingPhase storage current_vp = phases[uint256(current_phase)];
-        if (!current_vp.closed) {
-            if (block.number >= current_vp.end) {
+        if (
+            !current_vp.processed &&
+            !current_vp.closed &&
+            block.number >= current_vp.end
+        ) {
+            if (current_vp.result) {
                 _when_phase_been_passed(uint256(current_phase));
-            }
-        } else {
-            if (!current_vp.result) {
-                _when_phase_been_denied(uint256(current_phase));
             } else {
-                if (uint256(current_phase) < phases.length - 1) {
-                    int256 next_phase = current_phase + 1;
-                    VotingPhase storage next_vp = phases[uint256(next_phase)];
-                    if (block.number >= next_vp.start) {
-                        current_phase = next_phase;
-                        emit ProjectPhaseChange(id, uint256(current_phase));
-                    }
-                } else {
-                    if (block.number > current_vp.end) {
-                        status = ProjectStatus.AllPhasesDone;
-                        // move beyond valid phases
-                        // easier to just claim all phases before current_phase
-                        current_phase += 1;
-                        emit ProjectAllPhasesDone(id);
-                    }
+                _when_phase_been_denied(uint256(current_phase));
+            }
+        }
+
+        if (current_vp.closed && current_vp.result) {
+            if (uint256(current_phase) < phases.length - 1) {
+                int256 next_phase = current_phase + 1;
+                VotingPhase storage next_vp = phases[uint256(next_phase)];
+                if (block.number >= next_vp.start) {
+                    current_phase = next_phase;
+                    emit ProjectPhaseChange(id, uint256(current_phase));
+                }
+            } else {
+                if (block.number > current_vp.end) {
+                    status = ProjectStatus.AllPhasesDone;
+                    // move beyond valid phases
+                    // easier to just claim all phases before current_phase
+                    current_phase += 1;
+                    emit ProjectAllPhasesDone(id);
                 }
             }
         }
@@ -373,23 +379,30 @@ contract ProjectTemplate is BaseProjectTemplate {
     function heartbeat() public override nonReentrant {
         if (status == ProjectStatus.Initialized) {
             _heartbeat_initialized();
-        } else if (status == ProjectStatus.Collecting) {
+        }
+        if (status == ProjectStatus.Collecting) {
             _heartbeat_collecting();
-        } else if (
+        }
+        if (
             status == ProjectStatus.Refunding &&
             USDT_address.balanceOf(address(this)) == 0
         ) {
             status = ProjectStatus.Failed;
             emit ProjectFailed(id);
-        } else if (status == ProjectStatus.Succeeded) {
+        }
+        if (status == ProjectStatus.Succeeded) {
             _heartbeat_succeeded();
-        } else if (status == ProjectStatus.Rolling) {
+        }
+        if (status == ProjectStatus.Rolling) {
             _heartbeat_rolling();
-        } else if (status == ProjectStatus.PhaseFailed) {
+        }
+        if (status == ProjectStatus.PhaseFailed) {
             _heartbeat_phasefailed();
-        } else if (status == ProjectStatus.ReplanVoting) {
+        }
+        if (status == ProjectStatus.ReplanVoting) {
             _heartbeat_replanvoting();
-        } else if (status == ProjectStatus.ReplanFailed) {
+        }
+        if (status == ProjectStatus.ReplanFailed) {
             if (
                 failed_replan_count >= 2 ||
                 block.number >= phase_replan_deadline
@@ -397,12 +410,14 @@ contract ProjectTemplate is BaseProjectTemplate {
                 status = ProjectStatus.Liquidating;
                 emit ProjectLiquidating(id);
             }
-        } else if (status == ProjectStatus.Liquidating) {
+        }
+        if (status == ProjectStatus.Liquidating) {
             if (USDT_address.balanceOf(address(this)) == 0) {
                 status = ProjectStatus.Failed;
                 emit ProjectFailed(id);
             }
-        } else if (status == ProjectStatus.AllPhasesDone) {
+        }
+        if (status == ProjectStatus.AllPhasesDone) {
             if (
                 block.number < repay_deadline &&
                 USDT_address.balanceOf(address(this)) >= promised_repay
@@ -417,7 +432,6 @@ contract ProjectTemplate is BaseProjectTemplate {
     function platform_invest(address account, uint256 amount)
         public
         override
-        nonReentrant
         platformRequired
     {
         heartbeat();
@@ -506,12 +520,8 @@ contract ProjectTemplate is BaseProjectTemplate {
             } else {
                 vp.claimed = true;
                 vp.processed = true;
-                address recv_address = msg.sender;
-                if (fund_receiver != address(0)) {
-                    recv_address = fund_receiver;
-                }
                 USDT_address.safeTransfer(
-                    recv_address,
+                    fund_receiver,
                     actual_raised.mul(vp.percent).div(100)
                 );
             }
@@ -624,12 +634,8 @@ contract ProjectTemplate is BaseProjectTemplate {
         vp.result = true;
         vp.claimed = true;
         vp.processed = true;
-        address receiver = owner();
-        if (fund_receiver != address(0)) {
-            receiver = fund_receiver;
-        }
         USDT_address.safeTransfer(
-            receiver,
+            fund_receiver,
             actual_raised.mul(vp.percent).div(100)
         );
     }

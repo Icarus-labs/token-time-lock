@@ -30,6 +30,8 @@ abstract contract BaseProjectTemplate is Ownable, ProjectToken {
     address public platform;
     ProjectStatus public status;
     uint256 public max_amount;
+    uint256 public insurance_deadline;
+    bool public insurance_paid;
 
     modifier platformRequired() {
         require(
@@ -45,8 +47,12 @@ abstract contract BaseProjectTemplate is Ownable, ProjectToken {
         id = _project_id;
     }
 
-    function setName(string calldata _name) external {
+    function setName(string calldata _name) external onlyOwner {
         name = _name;
+    }
+
+    function mark_insurance_paid() public platformRequired {
+        insurance_paid = true;
     }
 
     function platform_invest(address account, uint256 amount) external virtual;

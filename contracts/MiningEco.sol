@@ -9,9 +9,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./ProjectTemplate.sol";
 import "./HasConstantSlots.sol";
 
-interface IBaseProjectTemplate {
-    function platform_invest(address account, uint256 amount) external;
-}
+import "hardhat/console.sol";
 
 struct Project {
     address payable addr;
@@ -23,20 +21,16 @@ contract MiningEco is HasConstantSlots {
     using Address for address;
     using SafeERC20 for IERC20;
 
-    IERC20 constant USDT_address =
-        IERC20(0xdAC17F958D2ee523a2206206994597C13D831ec7);
-
+    IERC20 USDT_address;
     bool public initialized;
-
-    uint256 public constant fee_rate = 50;
-
+    uint256 public fee_rate;
+    uint256 public insurance_rate;
     address public platform_token;
     address payable public insurance_vault;
 
     mapping(bytes32 => Project) public projects;
     mapping(address => bytes32) public projects_by_address;
     mapping(address => bytes32[]) public users_projects;
-
     mapping(uint256 => string) public templates;
 
     modifier projectIdExists(bytes32 id) {
@@ -75,7 +69,11 @@ contract MiningEco is HasConstantSlots {
         _;
     }
 
-    function initialize(address token, address payable vault) public {
+    function initialize(
+        address token,
+        address usdt,
+        address payable vault
+    ) public {
         require(!initialized);
         address adm;
         bytes32 slot = _ADMIN_SLOT;
@@ -87,6 +85,9 @@ contract MiningEco is HasConstantSlots {
 
         platform_token = token;
         insurance_vault = vault;
+        USDT_address = IERC20(usdt);
+        fee_rate = 50;
+        insurance_rate = 1000;
 
         slot = _MANAGER_SLOT;
         address _sender = msg.sender;
@@ -107,14 +108,18 @@ contract MiningEco is HasConstantSlots {
         insurance_vault = vault;
     }
 
-    function invest(address project_address, uint256 amount)
-        external
-        projectAddressExists(project_address)
-    {
-        _invest(project_address, amount);
+    function set_usdt(address a) public isManager {
+        USDT_address = IERC20(a);
     }
 
-    function invest(bytes32 project_id, uint256 amount)
+    // function invest_by_address(address project_address, uint256 amount)
+    //     external
+    //     projectAddressExists(project_address)
+    // {
+    //     _invest(project_address, amount);
+    // }
+
+    function invest_by_id(bytes32 project_id, uint256 amount)
         external
         projectIdExists(project_id)
     {
@@ -134,7 +139,7 @@ contract MiningEco is HasConstantSlots {
         // hold the investment at our own disposal
         USDT_address.safeTransferFrom(msg.sender, address(this), investment);
         // mint project token to investor
-        IBaseProjectTemplate(project_address).platform_invest(
+        BaseProjectTemplate(project_address).platform_invest(
             msg.sender,
             investment
         );
@@ -157,7 +162,16 @@ contract MiningEco is HasConstantSlots {
         uniqueProjectId(project_id)
     {
         uint256 fee = max_amount.mul(fee_rate).div(10000);
+        console.log(max_amount.mul(fee_rate));
+        console.log(max_amount.div(10000));
+        uint256 insurance = max_amount.mul(insurance_rate).div(10000);
+        console.log(insurance);
         IERC20(platform_token).safeTransferFrom(msg.sender, address(this), fee);
+        IERC20(platform_token).safeTransferFrom(
+            msg.sender,
+            insurance_vault,
+            fee
+        );
 
         address project_addr =
             create_project_from_template(
@@ -174,6 +188,7 @@ contract MiningEco is HasConstantSlots {
         if (init_calldata.length > 0) {
             project_addr.functionCall(init_calldata);
         }
+        BaseProjectTemplate(project_addr).mark_insurance_paid();
         BaseProjectTemplate(project_addr).transferOwnership(msg.sender);
     }
 
@@ -189,13 +204,11 @@ contract MiningEco is HasConstantSlots {
         string memory symbol
     ) internal returns (address p_addr) {
         bytes memory creationCode;
-        if (template_id == 0) {
-            creationCode = type(ProjectTemplate).creationCode;
-        }
+        creationCode = type(ProjectTemplate).creationCode;
         bytes memory bytecode =
             abi.encodePacked(
                 creationCode,
-                abi.encode(address(this), project_id, symbol)
+                abi.encode(address(this), project_id, symbol, USDT_address)
             );
         // this is where the salt can be imported
         // bytes32 salt = keccak256(
