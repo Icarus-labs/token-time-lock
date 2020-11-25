@@ -1,5 +1,4 @@
 require("@nomiclabs/hardhat-waffle");
-require("@openzeppelin/hardhat-upgrades");
 
 const fs = require("fs");
 const infuraKey = "e468cafc35eb43f0b6bd2ab4c83fa688";
@@ -41,5 +40,8 @@ module.exports = {
         runs: 100,
       },
     },
+  },
+  mocha: {
+    timeout: 200000,
   },
 };

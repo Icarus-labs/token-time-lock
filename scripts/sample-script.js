@@ -5,8 +5,11 @@
 // Runtime Environment's members available in the global scope.
 const hre = require("hardhat");
 const { ethers } = hre;
+const BN = require("bn.js");
 
-const { expect } = require("chai");
+const DADA_TOTAL_SUPPLY = new BN("10000000000000000000000000");
+const D18 = new BN("1000000000000000000");
+const USDT_TOTAL = new BN("1000000000000000000000000000000000000000000");
 
 async function main() {
   // Hardhat always runs the compile task when running scripts with its command
@@ -17,7 +20,22 @@ async function main() {
   // await hre.run('compile');
 
   // We get the contract to deploy
-  const [owner, other] = await ethers.getSigners();
+  const [owner, platformManager, dara] = await ethers.getSigners();
+  const StakingToken = await ethers.getContractFactory("StakingToken");
+  const dada = await StakingToken.deploy(
+    "DaDa Token",
+    "DADA",
+    DADA_TOTAL_SUPPLY.toString(),
+    DADA_TOTAL_SUPPLY.toString()
+  );
+  console.log("DADA deployed to:", dada.address);
+  const usdt = await StakingToken.deploy(
+    "USDT",
+    "USDT",
+    USDT_TOTAL.toString(),
+    USDT_TOTAL.toString()
+  );
+  console.log("USDT deployed to:", usdt.address);
   const MiningEco = await ethers.getContractFactory("MiningEco");
   const miningEco = await MiningEco.deploy();
   await miningEco.deployed();
@@ -27,23 +45,25 @@ async function main() {
   const proxy = await Proxy.deploy(miningEco.address, owner.address, []);
   console.log("MiningEcoProxy deployed to:", proxy.address);
 
-  const miningEcoInitFragment = miningEco.interface.getFunction("initialize");
-  const initializeCalldata = miningEco.interface.encodeFunctionData(
-    miningEcoInitFragment,
-    ["0xdAC17F958D2ee523a2206206994597C13D831ec7", owner.address] // token, vault
+  const platform = MiningEco.attach(proxy.address).connect(platformManager);
+  await platform.initialize(dada.address, usdt.address, owner.address);
+
+  const ProjectFactory = await ethers.getContractFactory("ProjectFactory");
+  const projectFactory = await ProjectFactory.deploy(
+    proxy.address,
+    usdt.address
   );
-  let tx = {
-    to: proxy.address,
-    data: ethers.utils.arrayify(initializeCalldata),
-    gasPrice: 50000000000,
-    gasLimit: 320000,
-  };
-  let res = await other.sendTransaction(tx);
-  let receipt = await res.wait(1);
-  console.log(
-    "Platform initialization is called through proxy:",
-    receipt.transactionHash
-  );
+
+  await platform.set_template(0, projectFactory.address);
+
+  const dada_balance = new BN(5000000).mul(D18);
+  await dada.mint(dada_balance.toString());
+  await dada.transfer(dara.address, dada_balance.toString());
+  const usdt_balance = USDT_TOTAL.div(new BN(100));
+  await usdt.mint(usdt_balance.toString());
+  await usdt.transfer(dara.address, usdt_balance.toString());
+
+  console.log(`initial balances have been given to ${dara.address}`);
 }
 
 // We recommend this pattern to be able to use async/await everywhere

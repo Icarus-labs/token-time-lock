@@ -6,10 +6,36 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./ProjectTemplate.sol";
 import "./HasConstantSlots.sol";
+import "./ProjectStatus.sol";
 
-import "hardhat/console.sol";
+interface IBaseProjectTemplate {
+    function setName(string calldata _name) external;
+
+    function insurance_paid() external returns (bool);
+
+    function mark_insurance_paid() external;
+
+    function platform_invest(address account, uint256 amount) external;
+
+    function heartbeat() external;
+
+    function transferOwnership(address) external;
+
+    function totalSupply() external returns (uint256);
+
+    function max_amount() external returns (uint256);
+
+    function actual_raised() external returns (uint256);
+
+    function status() external returns (ProjectStatus);
+}
+
+interface IBaseProjectFactory {
+    function instantiate(bytes32 project_id, string calldata symbol)
+        external
+        returns (address);
+}
 
 struct Project {
     address payable addr;
@@ -31,25 +57,34 @@ contract MiningEco is HasConstantSlots {
     mapping(bytes32 => Project) public projects;
     mapping(address => bytes32) public projects_by_address;
     mapping(address => bytes32[]) public users_projects;
-    mapping(uint256 => string) public templates;
+    mapping(uint256 => address) public template_gallery;
 
     modifier projectIdExists(bytes32 id) {
-        require(projects[id].addr != address(0));
+        require(
+            projects[id].addr != address(0),
+            "MiningEco: unknown project id"
+        );
         _;
     }
 
     modifier projectAddressExists(address addr) {
-        require(projects_by_address[addr] != bytes32(0));
+        require(
+            projects_by_address[addr] != bytes32(0),
+            "MiningEco: unknown project address"
+        );
         _;
     }
 
     modifier templateIdExists(uint256 id) {
-        require(id == 0);
+        require(
+            template_gallery[id] != address(0),
+            "MiningEco: unknown template"
+        );
         _;
     }
 
     modifier platformInitialized() {
-        require(initialized);
+        require(initialized, "MiningEco: platform not initialized");
         _;
     }
 
@@ -60,28 +95,34 @@ contract MiningEco is HasConstantSlots {
         assembly {
             manager := sload(slot)
         }
-        require(msg.sender == manager);
+        require(msg.sender == manager, "MiningEco: only manager");
         _;
     }
 
     modifier uniqueProjectId(bytes32 id) {
-        require(projects[id].addr == address(0));
+        require(
+            projects[id].addr == address(0),
+            "MiningEco: project id conflicts"
+        );
         _;
     }
+
+    event ProjectCreated(uint256 template_id, bytes32 project_id, address who);
+    event ProjectInsurancePaid(bytes32 projectid, uint256, address who);
 
     function initialize(
         address token,
         address usdt,
         address payable vault
     ) public {
-        require(!initialized);
+        require(!initialized, "MiningEco: already initialized");
         address adm;
         bytes32 slot = _ADMIN_SLOT;
         // solhint-disable-next-line no-inline-assembly
         assembly {
             adm := sload(slot)
         }
-        require(adm != address(0));
+        require(adm != address(0), "MiningEco: not from proxy");
 
         platform_token = token;
         insurance_vault = vault;
@@ -95,12 +136,11 @@ contract MiningEco is HasConstantSlots {
         assembly {
             sstore(slot, _sender)
         }
-        templates[0] = type(ProjectTemplate).name;
         initialized = true;
     }
 
     function set_platform_token(address addr) public isManager {
-        require(addr != address(0));
+        require(addr != address(0), "MiningEco: wrong address");
         platform_token = addr;
     }
 
@@ -112,14 +152,15 @@ contract MiningEco is HasConstantSlots {
         USDT_address = IERC20(a);
     }
 
-    // function invest_by_address(address project_address, uint256 amount)
-    //     external
-    //     projectAddressExists(project_address)
-    // {
-    //     _invest(project_address, amount);
-    // }
+    function set_template(uint256 i, address projectTemplate) public isManager {
+        if (projectTemplate == address(0)) {
+            delete template_gallery[i];
+        } else {
+            template_gallery[i] = projectTemplate;
+        }
+    }
 
-    function invest_by_id(bytes32 project_id, uint256 amount)
+    function invest(bytes32 project_id, uint256 amount)
         external
         projectIdExists(project_id)
     {
@@ -128,8 +169,8 @@ contract MiningEco is HasConstantSlots {
     }
 
     function _invest(address project_address, uint256 amount) internal {
-        uint256 supply = ProjectToken(project_address).totalSupply();
-        uint256 max = ProjectTemplate(project_address).max_amount();
+        uint256 supply = IBaseProjectTemplate(project_address).totalSupply();
+        uint256 max = IBaseProjectTemplate(project_address).max_amount();
 
         uint256 investment = amount;
         if (max.sub(supply) < amount) {
@@ -139,7 +180,7 @@ contract MiningEco is HasConstantSlots {
         // hold the investment at our own disposal
         USDT_address.safeTransferFrom(msg.sender, address(this), investment);
         // mint project token to investor
-        BaseProjectTemplate(project_address).platform_invest(
+        IBaseProjectTemplate(project_address).platform_invest(
             msg.sender,
             investment
         );
@@ -162,21 +203,13 @@ contract MiningEco is HasConstantSlots {
         uniqueProjectId(project_id)
     {
         uint256 fee = max_amount.mul(fee_rate).div(10000);
-        console.log(max_amount.mul(fee_rate));
-        console.log(max_amount.div(10000));
-        uint256 insurance = max_amount.mul(insurance_rate).div(10000);
-        console.log(insurance);
         IERC20(platform_token).safeTransferFrom(msg.sender, address(this), fee);
-        IERC20(platform_token).safeTransferFrom(
-            msg.sender,
-            insurance_vault,
-            fee
+        require(
+            template_gallery[template_id] != address(0),
+            "MiningEco: unknown template"
         );
-
         address project_addr =
-            create_project_from_template(
-                msg.sender,
-                template_id,
+            IBaseProjectFactory(template_gallery[template_id]).instantiate(
                 project_id,
                 symbol
             );
@@ -188,8 +221,9 @@ contract MiningEco is HasConstantSlots {
         if (init_calldata.length > 0) {
             project_addr.functionCall(init_calldata);
         }
-        BaseProjectTemplate(project_addr).mark_insurance_paid();
-        BaseProjectTemplate(project_addr).transferOwnership(msg.sender);
+        IBaseProjectTemplate(project_addr).transferOwnership(msg.sender);
+
+        emit ProjectCreated(template_id, project_id, msg.sender);
     }
 
     function append_new_project_to_user(address user, bytes32 pid) internal {
@@ -197,48 +231,33 @@ contract MiningEco is HasConstantSlots {
         pjs.push(pid);
     }
 
-    function create_project_from_template(
-        address owner,
-        uint256 template_id,
-        bytes32 project_id,
-        string memory symbol
-    ) internal returns (address p_addr) {
-        bytes memory creationCode;
-        creationCode = type(ProjectTemplate).creationCode;
-        bytes memory bytecode =
-            abi.encodePacked(
-                creationCode,
-                abi.encode(address(this), project_id, symbol, USDT_address)
-            );
-        // this is where the salt can be imported
-        // bytes32 salt = keccak256(
-        //     abi.encodePacked(owner, template_id, project_id)
-        // );
-        address predict =
-            address(
-                uint160(
-                    uint256(
-                        keccak256(
-                            abi.encodePacked(
-                                bytes1(0xff),
-                                address(this),
-                                uint256(project_id),
-                                keccak256(bytecode)
-                            )
-                        )
-                    )
-                )
-            );
-        require(!predict.isContract());
-        assembly {
-            p_addr := create2(
-                0,
-                add(bytecode, 0x20),
-                mload(bytecode),
-                project_id
-            )
-        }
-        require(predict == p_addr);
-        return p_addr;
+    function pay_insurance(bytes32 projectid)
+        public
+        projectIdExists(projectid)
+    {
+        address project = projects[projectid].addr;
+        require(
+            false == IBaseProjectTemplate(project).insurance_paid(),
+            "MiningEco: insurance paid"
+        );
+        IBaseProjectTemplate(project).heartbeat();
+        require(
+            IBaseProjectTemplate(project).status() == ProjectStatus.Succeeded,
+            "MiningEco: not succeeded for insurance"
+        );
+        uint256 raised = IBaseProjectTemplate(project).actual_raised();
+        uint256 insurance = usdt2dada(raised.div(10));
+        IERC20(platform_token).safeTransferFrom(
+            msg.sender,
+            insurance_vault,
+            insurance
+        );
+        IBaseProjectTemplate(project).mark_insurance_paid();
+
+        emit ProjectInsurancePaid(projectid, insurance, msg.sender);
+    }
+
+    function usdt2dada(uint256 amount) public view returns (uint256) {
+        return amount;
     }
 }

@@ -45,11 +45,11 @@ struct ReplanVotes {
     uint256 deadline;
 }
 
-contract ProjectTemplate is BaseProjectTemplate {
+contract TestProjectTemplate is BaseProjectTemplate {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    uint256 public constant BLOCKS_PER_DAY = 6525;
+    uint256 public constant BLOCKS_PER_DAY = 10;
     uint256 public constant REPLAN_NOTICE = 1;
     uint256 public constant REPLAN_VOTE_WINDOW = 3;
     uint256 public constant PHASE_KEEPALIVE = 3;
@@ -227,15 +227,6 @@ contract ProjectTemplate is BaseProjectTemplate {
                 return (0, false);
             }
         }
-    }
-
-    function current_phase_status()
-        public
-        view
-        returns (bool closed, bool result)
-    {
-        VotingPhase storage vp = phases[uint256(current_phase)];
-        return (vp.closed, vp.result);
     }
 
     function replan(PhaseInfo[] calldata _phases)
