@@ -7,7 +7,7 @@ const DADA_TOTAL_SUPPLY = new BN("10000000000000000000000000");
 const D18 = new BN("1000000000000000000");
 const USDT_TOTAL = new BN("1000000000000000000000000000000000000000000");
 
-describe("TestProjectTemplate", function () {
+describe("ProjectTemplate replan situations", function () {
   beforeEach(async function () {
     const StakingToken = await ethers.getContractFactory("StakingToken");
     this.dada = await StakingToken.deploy(
@@ -360,5 +360,74 @@ describe("TestProjectTemplate", function () {
     await pt.heartbeat();
     // console.log(`current block: ${await getBlockNumber()}`);
     expect(await pt.status()).to.equal(12);
+  });
+
+  it("check replan auth", async function () {
+    const [admin, platformManager, pm, other] = await ethers.getSigners();
+    const blockNumber = await getBlockNumber();
+    const miningEcoPM = this.miningEco.connect(pm);
+    const projectId = "0x" + cryptoRandomString({ length: 64 });
+    const ProjectTemplate = await ethers.getContractFactory(
+      "TestProjectTemplate"
+    );
+    const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
+    const max = D18.mul(new BN(1000000));
+    const min = max.mul(new BN(8)).div(new BN(10));
+    const profitRate = 1000;
+    const raiseStart = blockNumber;
+    const raiseEnd = blockNumber + 10;
+    const phases = [
+      [blockNumber + 40, blockNumber + 41, 80],
+      [blockNumber + 50, blockNumber + 60, 20],
+    ];
+    const repayDeadline = blockNumber + 1000;
+    const replanGrants = [pm.address];
+    const calldata = ProjectTemplate.interface.encodeFunctionData(
+      initializeFrgmt,
+      [
+        pm.address,
+        raiseStart,
+        raiseEnd,
+        min.toString(),
+        max.toString(),
+        repayDeadline,
+        profitRate,
+        phases,
+        replanGrants,
+        0,
+      ]
+    );
+    await this.dada
+      .connect(pm)
+      .approve(miningEcoPM.address, this.balancePM.toString());
+    sent = await miningEcoPM.new_project(
+      0,
+      projectId,
+      max.toString(),
+      "test1",
+      calldata
+    );
+    await sent.wait(1);
+    let project = await miningEcoPM.projects(projectId);
+    let projectTemplate = ProjectTemplate.attach(project.addr);
+    let pt = projectTemplate.connect(pm);
+    await pt.heartbeat();
+    const miningEcoOther = this.miningEco.connect(other);
+    await this.usdt
+      .connect(other)
+      .approve(miningEcoOther.address, max.toString());
+    await miningEcoOther.invest(projectId, max.toString());
+    await mineBlocks(10);
+    await this.miningEco.pay_insurance(projectId);
+    await mineBlocks(40);
+    await pt.heartbeat();
+    await projectTemplate.connect(other).vote_against_phase(1);
+    const newPhases = [
+      [blockNumber + 100, blockNumber + 110, 10],
+      [blockNumber + 120, blockNumber + 130, 10],
+    ];
+    await expect(
+      projectTemplate.connect(other).replan(newPhases)
+    ).to.be.revertedWith("ProjectTemplate: no replan auth");
   });
 });

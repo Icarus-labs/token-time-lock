@@ -7,7 +7,7 @@ const DADA_TOTAL_SUPPLY = new BN("10000000000000000000000000");
 const D18 = new BN("1000000000000000000");
 const USDT_TOTAL = new BN("1000000000000000000000000000000000000000000");
 
-describe("TestProjectTemplate", function () {
+describe("ProjectTemplate lifetime changes", function () {
   beforeEach(async function () {
     const StakingToken = await ethers.getContractFactory("StakingToken");
     this.dada = await StakingToken.deploy(
