@@ -64,7 +64,12 @@ describe("TestProjectTemplate", function () {
       other.address,
       USDT_TOTAL.div(new BN(100)).toString()
     );
-
+    this.usdtPM = USDT_TOTAL.div(new BN(100));
+    await this.usdt.mint(USDT_TOTAL.div(new BN(100)).toString());
+    await this.usdt.transfer(
+      pm.address,
+      USDT_TOTAL.div(new BN(100)).toString()
+    );
     this.miningEco = this.miningEco.connect(pm);
   });
 
@@ -144,7 +149,7 @@ describe("TestProjectTemplate", function () {
     await pt.heartbeat();
     expect(await projectTemplate.status()).to.equal(7);
     expect((await this.usdt.balanceOf(pm.address)).toString()).to.equal(
-      max.mul(new BN(8)).div(new BN(10)).toString()
+      max.mul(new BN(8)).div(new BN(10)).add(this.usdtPM).toString()
     );
     await mineBlocks(10);
     await pt.heartbeat();
@@ -225,7 +230,7 @@ describe("TestProjectTemplate", function () {
     await pt.heartbeat();
     expect(await projectTemplate.status()).to.equal(7); // Rolling
     expect((await this.usdt.balanceOf(pm.address)).toString()).to.equal(
-      max.mul(new BN(8)).div(new BN(10)).toString()
+      max.mul(new BN(8)).div(new BN(10)).add(this.usdtPM).toString()
     );
     await mineBlocks(10);
     await pt.heartbeat();
@@ -238,7 +243,7 @@ describe("TestProjectTemplate", function () {
     expect(await projectTemplate.current_phase()).to.equal(2);
     expect(await projectTemplate.status()).to.equal(12); //
     expect((await this.usdt.balanceOf(pm.address)).toString()).to.equal(
-      max.toString()
+      max.add(this.usdtPM).toString()
     );
   });
 
@@ -316,7 +321,7 @@ describe("TestProjectTemplate", function () {
     await pt.heartbeat();
     expect(await projectTemplate.status()).to.equal(7); // Rolling
     expect((await this.usdt.balanceOf(pm.address)).toString()).to.equal(
-      max.mul(new BN(8)).div(new BN(10)).toString()
+      max.mul(new BN(8)).div(new BN(10)).add(this.usdtPM).toString()
     );
     await mineBlocks(10);
     await pt.heartbeat();
@@ -406,6 +411,146 @@ describe("TestProjectTemplate", function () {
     expect(await pt.status()).to.equal(7);
     await mineBlocks(70);
     await pt.heartbeat();
-    expect(await pt.current_phase()).to.equal(2);
+    expect(await pt.current_phase()).to.equal(3);
+    expect(await pt.status()).to.equal(12);
+  });
+
+  it("after all phase done", async function () {
+    const [admin, platformManager, pm, other] = await ethers.getSigners();
+    const blockNumber = await getBlockNumber();
+    const projectId = "0x" + cryptoRandomString({ length: 64 });
+    const ProjectTemplate = await ethers.getContractFactory(
+      "TestProjectTemplate"
+    );
+    const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
+    const max = D18.mul(new BN(1000000));
+    const min = max.mul(new BN(8)).div(new BN(10));
+    const profitRate = 1000;
+    const raiseStart = blockNumber;
+    const raiseEnd = blockNumber + 10;
+    const phases = [
+      [blockNumber + 40, blockNumber + 41, 80],
+      [blockNumber + 50, blockNumber + 60, 20],
+    ];
+    const repayDeadline = blockNumber + 1000;
+    const replanGrants = [pm.address];
+    const calldata = ProjectTemplate.interface.encodeFunctionData(
+      initializeFrgmt,
+      [
+        pm.address,
+        raiseStart,
+        raiseEnd,
+        min.toString(),
+        max.toString(),
+        repayDeadline,
+        profitRate,
+        phases,
+        replanGrants,
+        0,
+      ]
+    );
+    await this.dada
+      .connect(pm)
+      .approve(this.miningEco.address, this.balancePM.toString());
+    sent = await this.miningEco.new_project(
+      0,
+      projectId,
+      max.toString(),
+      "test1",
+      calldata
+    );
+    await sent.wait(1);
+    let project = await this.miningEco.projects(projectId);
+    let projectTemplate = ProjectTemplate.attach(project.addr);
+    let pt = projectTemplate.connect(pm);
+    await pt.heartbeat();
+    const miningEcoOther = this.miningEco.connect(other);
+    await this.usdt
+      .connect(other)
+      .approve(miningEcoOther.address, max.toString());
+    await miningEcoOther.invest(projectId, max.toString());
+    await mineBlocks(10);
+    await this.miningEco.pay_insurance(projectId);
+    await mineBlocks(50);
+    await pt.heartbeat();
+    expect(await projectTemplate.status()).to.equal(12);
+    let _number = await getBlockNumber();
+    await mineBlocks(repayDeadline - _number - 10);
+    await this.usdt
+      .connect(pm)
+      .transfer(pt.address, max.div(new BN(10)).add(max).toString());
+    await pt.heartbeat();
+    expect(await projectTemplate.status()).to.equal(13);
+  });
+
+  it("repay", async function () {
+    const [admin, platformManager, pm, other] = await ethers.getSigners();
+    const blockNumber = await getBlockNumber();
+    const projectId = "0x" + cryptoRandomString({ length: 64 });
+    const ProjectTemplate = await ethers.getContractFactory(
+      "TestProjectTemplate"
+    );
+    const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
+    const max = D18.mul(new BN(1000000));
+    const min = max.mul(new BN(8)).div(new BN(10));
+    const profitRate = 1000;
+    const raiseStart = blockNumber;
+    const raiseEnd = blockNumber + 10;
+    const phases = [
+      [blockNumber + 40, blockNumber + 41, 80],
+      [blockNumber + 50, blockNumber + 60, 20],
+    ];
+    const repayDeadline = blockNumber + 1000;
+    const replanGrants = [pm.address];
+    const calldata = ProjectTemplate.interface.encodeFunctionData(
+      initializeFrgmt,
+      [
+        pm.address,
+        raiseStart,
+        raiseEnd,
+        min.toString(),
+        max.toString(),
+        repayDeadline,
+        profitRate,
+        phases,
+        replanGrants,
+        0,
+      ]
+    );
+    await this.dada
+      .connect(pm)
+      .approve(this.miningEco.address, this.balancePM.toString());
+    sent = await this.miningEco.new_project(
+      0,
+      projectId,
+      max.toString(),
+      "test1",
+      calldata
+    );
+    await sent.wait(1);
+    let project = await this.miningEco.projects(projectId);
+    let projectTemplate = ProjectTemplate.attach(project.addr);
+    let pt = projectTemplate.connect(pm);
+    await pt.heartbeat();
+    const miningEcoOther = this.miningEco.connect(other);
+    await this.usdt
+      .connect(other)
+      .approve(miningEcoOther.address, max.toString());
+    await miningEcoOther.invest(projectId, max.toString());
+    await mineBlocks(10);
+    await this.miningEco.pay_insurance(projectId);
+    await mineBlocks(50);
+    await pt.heartbeat();
+    let _number = await getBlockNumber();
+    await mineBlocks(repayDeadline - _number - 10);
+    await this.usdt
+      .connect(pm)
+      .transfer(pt.address, max.div(new BN(10)).add(max).toString());
+    await pt.heartbeat();
+    await pt.connect(other).repay();
+    expect((await this.usdt.balanceOf(pt.address)).toString()).to.equal("0");
+    expect(await pt.status()).to.equal(13);
+    await pt.heartbeat();
+    expect(await pt.status()).to.equal(14);
   });
 });

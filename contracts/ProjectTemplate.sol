@@ -201,6 +201,25 @@ contract ProjectTemplate is BaseProjectTemplate {
         fund_receiver = recv;
     }
 
+    function get_total_phase_number() public view returns (uint256) {
+        return phases.length;
+    }
+
+    function get_phase_info(uint256 phase_id)
+        public
+        view
+        returns (
+            uint256,
+            uint256,
+            bool,
+            bool
+        )
+    {
+        VotingPhase storage vp = phases[phase_id];
+        require(vp.start > 0, "ProjectTemplate: phase doesn't exists");
+        return (vp.start, vp.end, vp.closed, vp.result);
+    }
+
     function voted(
         address user,
         uint256 phase_id,
@@ -232,10 +251,15 @@ contract ProjectTemplate is BaseProjectTemplate {
     function current_phase_status()
         public
         view
-        returns (bool closed, bool result)
+        returns (
+            uint256 start,
+            uint256 end,
+            bool closed,
+            bool result
+        )
     {
         VotingPhase storage vp = phases[uint256(current_phase)];
-        return (vp.closed, vp.result);
+        return (vp.start, vp.end, vp.closed, vp.result);
     }
 
     function replan(PhaseInfo[] calldata _phases)
@@ -263,6 +287,10 @@ contract ProjectTemplate is BaseProjectTemplate {
     }
 
     function _replan(PhaseInfo[] memory _phases) internal {
+        require(
+            block.number < phase_replan_deadline,
+            "ProjectTemplate: missing the replan window"
+        );
         uint256 total_percent_left;
         for (uint256 i = uint256(current_phase); i < phases.length; i++) {
             total_percent_left = total_percent_left.add(phases[i].percent);
@@ -298,9 +326,7 @@ contract ProjectTemplate is BaseProjectTemplate {
         }
         replan_votes.checkpoint = checkpoint;
         replan_votes.deadline = deadline;
-        if (block.number >= checkpoint) {
-            status = ProjectStatus.ReplanVoting;
-        }
+        phase_replan_deadline = 0;
     }
 
     function _reset_replan_votes() internal {
@@ -310,29 +336,35 @@ contract ProjectTemplate is BaseProjectTemplate {
         delete replan_votes.new_phases;
     }
 
-    function _heartbeat_initialized() internal {
+    function _heartbeat_initialized() internal returns (bool) {
         if (block.number >= raise_start && block.number < raise_end) {
             status = ProjectStatus.Collecting;
             emit ProjectCollecting(id);
+            return true;
         } else if (block.number >= raise_end) {
             status = ProjectStatus.Failed;
             emit ProjectFailed(id);
+            return true;
         }
+        return false;
     }
 
-    function _heartbeat_collecting() internal {
+    function _heartbeat_collecting() internal returns (bool) {
         if (block.number >= raise_end) {
             if (actual_raised >= min_amount && actual_raised <= max_amount) {
                 status = ProjectStatus.Succeeded;
                 emit ProjectSucceeded(id);
+                return true;
             } else {
                 status = ProjectStatus.Refunding;
                 emit ProjectRefunding(id);
+                return true;
             }
         }
+        return false;
     }
 
-    function _heartbeat_succeeded() internal {
+    function _heartbeat_succeeded() internal returns (bool) {
         VotingPhase memory first_vp = phases[0];
         if (block.number >= raise_end && promised_repay == 0) {
             promised_repay = actual_raised.add(
@@ -343,15 +375,20 @@ contract ProjectTemplate is BaseProjectTemplate {
             status = ProjectStatus.Refunding;
             emit ProjectInsuranceFailure(id);
             emit ProjectRefunding(id);
+            return true;
         } else if (block.number >= first_vp.start) {
             status = ProjectStatus.Rolling;
             current_phase = 0;
             emit ProjectRolling(id);
             emit ProjectPhaseChange(id, uint256(current_phase));
+            return true;
         }
+        return false;
     }
 
-    function _heartbeat_rolling() internal {
+    function _heartbeat_rolling() internal returns (bool) {
+        bool again = false;
+
         VotingPhase storage current_vp = phases[uint256(current_phase)];
         if (
             !current_vp.processed &&
@@ -361,7 +398,6 @@ contract ProjectTemplate is BaseProjectTemplate {
             // default pass
             _when_phase_been_passed(uint256(current_phase));
         }
-
         if (current_vp.closed && current_vp.result) {
             if (uint256(current_phase) < phases.length - 1) {
                 int256 next_phase = current_phase + 1;
@@ -369,6 +405,7 @@ contract ProjectTemplate is BaseProjectTemplate {
                 if (block.number >= next_vp.start) {
                     current_phase = next_phase;
                     emit ProjectPhaseChange(id, uint256(current_phase));
+                    again = true;
                 }
             } else {
                 if (block.number > current_vp.end) {
@@ -377,88 +414,135 @@ contract ProjectTemplate is BaseProjectTemplate {
                     // easier to just claim all phases before current_phase
                     current_phase += 1;
                     emit ProjectAllPhasesDone(id);
+                    again = true;
                 }
             }
         }
+
+        return again;
     }
 
-    function _heartbeat_phasefailed() internal {
-        if (block.number >= phase_replan_deadline) {
+    function _heartbeat_phasefailed() internal returns (bool) {
+        if (
+            phase_replan_deadline > 0 && block.number >= phase_replan_deadline
+        ) {
             status = ProjectStatus.Liquidating;
             emit ProjectLiquidating(id);
+            return true;
         } else if (
             replan_votes.checkpoint > 0 &&
             block.number >= replan_votes.checkpoint
         ) {
             status = ProjectStatus.ReplanVoting;
             emit ProjectReplanVoting(id);
+            return true;
         }
+
+        return false;
     }
 
-    function _heartbeat_replanvoting() internal {
+    function _heartbeat_replanvoting() internal returns (bool) {
         if (block.number >= replan_votes.deadline) {
             failed_replan_count += 1;
             if (failed_replan_count >= 2) {
                 status = ProjectStatus.Liquidating;
                 emit ProjectLiquidating(id);
+                return true;
             } else {
                 status = ProjectStatus.ReplanFailed;
+                _reset_replan_votes();
                 phase_replan_deadline = _create_phase_replan_deadline();
                 emit ProjectReplanFailed(id);
+                return true;
             }
         }
+        return false;
     }
 
-    function heartbeat() public override nonReentrant {
-        if (status == ProjectStatus.Initialized) {
-            _heartbeat_initialized();
-        }
-        if (status == ProjectStatus.Collecting) {
-            _heartbeat_collecting();
-        }
+    function _heartbeat_replanfailed() internal returns (bool) {
         if (
-            status == ProjectStatus.Refunding &&
-            USDT_address.balanceOf(address(this)) == 0
+            failed_replan_count >= 2 ||
+            (phase_replan_deadline > 0 && block.number >= phase_replan_deadline)
         ) {
-            status = ProjectStatus.Failed;
-            emit ProjectFailed(id);
+            status = ProjectStatus.Liquidating;
+            emit ProjectLiquidating(id);
+            return true;
+        } else if (
+            replan_votes.checkpoint > 0 &&
+            block.number >= replan_votes.checkpoint
+        ) {
+            status = ProjectStatus.ReplanVoting;
+            emit ProjectReplanVoting(id);
+            return true;
         }
-        if (status == ProjectStatus.Succeeded) {
-            _heartbeat_succeeded();
+        return false;
+    }
+
+    function _heartbeat_repaying() internal returns (bool) {
+        if (USDT_address.balanceOf(address(this)) == 0) {
+            status = ProjectStatus.Finished;
+            emit ProjectFinished(id);
         }
-        if (status == ProjectStatus.Rolling) {
-            _heartbeat_rolling();
-        }
-        if (status == ProjectStatus.PhaseFailed) {
-            _heartbeat_phasefailed();
-        }
-        if (status == ProjectStatus.ReplanVoting) {
-            _heartbeat_replanvoting();
-        }
-        if (status == ProjectStatus.ReplanFailed) {
-            if (
-                failed_replan_count >= 2 ||
-                block.number >= phase_replan_deadline
-            ) {
-                status = ProjectStatus.Liquidating;
-                emit ProjectLiquidating(id);
+        return false;
+    }
+
+    // it should be easier a hearbeat call only move a step forward but considering gas price,
+    // one heartbeat may cause multiple moves to a temp steady status.
+    function heartbeat() public override nonReentrant {
+        bool loop = false;
+        do {
+            loop = false;
+
+            if (status == ProjectStatus.Initialized) {
+                loop = _heartbeat_initialized();
             }
-        }
-        if (status == ProjectStatus.Liquidating) {
-            if (USDT_address.balanceOf(address(this)) == 0) {
+            if (status == ProjectStatus.Collecting) {
+                loop = _heartbeat_collecting();
+            }
+            if (
+                status == ProjectStatus.Refunding &&
+                USDT_address.balanceOf(address(this)) == 0
+            ) {
                 status = ProjectStatus.Failed;
                 emit ProjectFailed(id);
+                loop = true;
             }
-        }
-        if (status == ProjectStatus.AllPhasesDone) {
-            if (
-                block.number < repay_deadline &&
-                USDT_address.balanceOf(address(this)) >= promised_repay
-            ) {
-                status = ProjectStatus.Repaying;
-                emit ProjectRepaying(id);
+            if (status == ProjectStatus.Succeeded) {
+                loop = _heartbeat_succeeded();
             }
-        }
+            if (status == ProjectStatus.Rolling) {
+                loop = _heartbeat_rolling();
+            }
+            if (status == ProjectStatus.PhaseFailed) {
+                loop = _heartbeat_phasefailed();
+            }
+            if (status == ProjectStatus.ReplanVoting) {
+                loop = _heartbeat_replanvoting();
+            }
+            if (status == ProjectStatus.ReplanFailed) {
+                loop = _heartbeat_replanfailed();
+            }
+            if (status == ProjectStatus.Liquidating) {
+                if (USDT_address.balanceOf(address(this)) == 0) {
+                    status = ProjectStatus.Failed;
+                    emit ProjectFailed(id);
+                    loop = true;
+                }
+            }
+            if (status == ProjectStatus.AllPhasesDone) {
+                if (
+                    block.number < repay_deadline &&
+                    USDT_address.balanceOf(address(this)) >= promised_repay
+                ) {
+                    status = ProjectStatus.Repaying;
+                    emit ProjectRepaying(id);
+                    loop = true;
+                }
+            }
+            if (status == ProjectStatus.Repaying) {
+                loop = _heartbeat_repaying();
+            }
+        } while (loop);
     }
 
     // only platform can recieve investment
@@ -480,7 +564,7 @@ contract ProjectTemplate is BaseProjectTemplate {
         actual_raised = actual_raised.add(amount);
     }
 
-    function refund() public nonReentrant {
+    function refund() public {
         heartbeat();
         require(
             status == ProjectStatus.Refunding,
@@ -492,7 +576,7 @@ contract ProjectTemplate is BaseProjectTemplate {
         _transfer(msg.sender, address(this), amount);
     }
 
-    function liquidate() public nonReentrant {
+    function liquidate() public {
         heartbeat();
         require(
             status == ProjectStatus.Liquidating,
@@ -505,7 +589,7 @@ contract ProjectTemplate is BaseProjectTemplate {
         _transfer(msg.sender, address(this), amount);
     }
 
-    function repay() public nonReentrant {
+    function repay() public {
         heartbeat();
         require(
             status == ProjectStatus.Repaying,
