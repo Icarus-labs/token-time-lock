@@ -45,14 +45,15 @@ async function main() {
   const proxy = await Proxy.deploy(miningEco.address, owner.address, []);
   console.log("MiningEcoProxy deployed to:", proxy.address);
 
-  const platform = MiningEco.attach(proxy.address).connect(platformManager);
-  await platform.initialize(dada.address, usdt.address, owner.address);
-
   const ProjectFactory = await ethers.getContractFactory("ProjectFactory");
   const projectFactory = await ProjectFactory.deploy(
     proxy.address,
     usdt.address
   );
+  console.log("Template deployed to:", projectFactory.address);
+
+  const platform = MiningEco.attach(proxy.address).connect(platformManager);
+  await platform.initialize(dada.address, usdt.address, owner.address);
 
   await platform.set_template(0, projectFactory.address);
 
