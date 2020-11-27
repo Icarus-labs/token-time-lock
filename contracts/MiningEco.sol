@@ -37,6 +37,13 @@ interface IBaseProjectFactory {
         returns (address);
 }
 
+interface IPriceFeed {
+    // get price in USDT
+    function from_usdt_to_token(uint256 amount, address token)
+        external
+        returns (uint256, uint256);
+}
+
 struct Project {
     address payable addr;
     address payable owner;
@@ -53,6 +60,7 @@ contract MiningEco is HasConstantSlots {
     uint256 public insurance_rate;
     address public platform_token;
     address payable public insurance_vault;
+    address public price_feed;
 
     mapping(bytes32 => Project) public projects;
     mapping(address => bytes32) public projects_by_address;
@@ -137,6 +145,11 @@ contract MiningEco is HasConstantSlots {
             sstore(slot, _sender)
         }
         initialized = true;
+    }
+
+    function set_price_feed(address _price_feed) public isManager {
+        require(_price_feed != address(0), "MiningEco: wrong address");
+        price_feed = _price_feed;
     }
 
     function set_platform_token(address addr) public isManager {
@@ -257,7 +270,17 @@ contract MiningEco is HasConstantSlots {
         emit ProjectInsurancePaid(projectid, insurance, msg.sender);
     }
 
-    function usdt2dada(uint256 amount) public view returns (uint256) {
-        return amount;
+    function usdt2dada(uint256 amount) public returns (uint256) {
+        if (price_feed == address(0)) {
+            // 1 : 1
+            return amount;
+        } else {
+            (uint256 token_amount, uint256 ts) =
+                IPriceFeed(price_feed).from_usdt_to_token(
+                    amount,
+                    platform_token
+                );
+            return token_amount;
+        }
     }
 }
