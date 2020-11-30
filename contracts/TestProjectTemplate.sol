@@ -76,7 +76,7 @@ contract TestProjectTemplate is BaseProjectTemplate {
     ReplanVotes replan_votes;
     mapping(address => bool) who_can_replan;
 
-    event ProjectCollecting(bytes32 project_id);
+    event ProjectRaising(bytes32 project_id);
     event ProjectFailed(bytes32 project_id);
     event ProjectSucceeded(bytes32 project_id);
     event ProjectRefunding(bytes32 project_id);
@@ -131,7 +131,7 @@ contract TestProjectTemplate is BaseProjectTemplate {
         PhaseInfo[] memory _phases,
         address[] memory _replan_grants,
         uint256 _
-    ) public nonReentrant onlyOwner projectJustCreated {
+    ) public onlyOwner projectJustCreated {
         require(_phases.length > 1, "ProjectTemplate: phase length");
         require(
             _phases[0].percent <= 80,
@@ -262,11 +262,7 @@ contract TestProjectTemplate is BaseProjectTemplate {
         return (vp.start, vp.end, vp.closed, vp.result);
     }
 
-    function replan(PhaseInfo[] calldata _phases)
-        public
-        requireReplanAuth
-        nonReentrant
-    {
+    function replan(PhaseInfo[] calldata _phases) public requireReplanAuth {
         if (status == ProjectStatus.Rolling) {
             require(
                 uint256(current_phase) + 1 < phases.length &&
@@ -338,8 +334,8 @@ contract TestProjectTemplate is BaseProjectTemplate {
 
     function _heartbeat_initialized() internal returns (bool) {
         if (block.number >= raise_start && block.number < raise_end) {
-            status = ProjectStatus.Collecting;
-            emit ProjectCollecting(id);
+            status = ProjectStatus.Raising;
+            emit ProjectRaising(id);
             return true;
         } else if (block.number >= raise_end) {
             status = ProjectStatus.Failed;
@@ -488,16 +484,16 @@ contract TestProjectTemplate is BaseProjectTemplate {
 
     // it should be easier a hearbeat call only move a step forward but considering gas price,
     // one heartbeat may cause multiple moves to a temp steady status.
-    function heartbeat() public override nonReentrant {
-        bool loop = false;
+    function heartbeat() public override {
+        bool again = false;
         do {
-            loop = false;
+            again = false;
 
             if (status == ProjectStatus.Initialized) {
-                loop = _heartbeat_initialized();
+                again = _heartbeat_initialized();
             }
-            if (status == ProjectStatus.Collecting) {
-                loop = _heartbeat_collecting();
+            if (status == ProjectStatus.Raising) {
+                again = _heartbeat_collecting();
             }
             if (
                 status == ProjectStatus.Refunding &&
@@ -505,28 +501,28 @@ contract TestProjectTemplate is BaseProjectTemplate {
             ) {
                 status = ProjectStatus.Failed;
                 emit ProjectFailed(id);
-                loop = true;
+                again = true;
             }
             if (status == ProjectStatus.Succeeded) {
-                loop = _heartbeat_succeeded();
+                again = _heartbeat_succeeded();
             }
             if (status == ProjectStatus.Rolling) {
-                loop = _heartbeat_rolling();
+                again = _heartbeat_rolling();
             }
             if (status == ProjectStatus.PhaseFailed) {
-                loop = _heartbeat_phasefailed();
+                again = _heartbeat_phasefailed();
             }
             if (status == ProjectStatus.ReplanVoting) {
-                loop = _heartbeat_replanvoting();
+                again = _heartbeat_replanvoting();
             }
             if (status == ProjectStatus.ReplanFailed) {
-                loop = _heartbeat_replanfailed();
+                again = _heartbeat_replanfailed();
             }
             if (status == ProjectStatus.Liquidating) {
                 if (USDT_address.balanceOf(address(this)) == 0) {
                     status = ProjectStatus.Failed;
                     emit ProjectFailed(id);
-                    loop = true;
+                    again = true;
                 }
             }
             if (status == ProjectStatus.AllPhasesDone) {
@@ -536,13 +532,13 @@ contract TestProjectTemplate is BaseProjectTemplate {
                 ) {
                     status = ProjectStatus.Repaying;
                     emit ProjectRepaying(id);
-                    loop = true;
+                    again = true;
                 }
             }
             if (status == ProjectStatus.Repaying) {
-                loop = _heartbeat_repaying();
+                again = _heartbeat_repaying();
             }
-        } while (loop);
+        } while (again);
     }
 
     // only platform can recieve investment
@@ -553,7 +549,7 @@ contract TestProjectTemplate is BaseProjectTemplate {
     {
         heartbeat();
         require(
-            status == ProjectStatus.Collecting,
+            status == ProjectStatus.Raising,
             "ProjectTemplate: not raising"
         );
         require(max_amount > totalSupply, "ProjectTemplate: reach max amount");

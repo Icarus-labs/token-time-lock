@@ -6,7 +6,7 @@ pragma solidity >=0.4.22 <0.8.0;
 enum ProjectStatus {
     Created, // just created, waiting for details
     Initialized, // ready for raising USDT
-    Collecting, // collecting investment
+    Raising, // raising funds
     Refunding, // somehow the project is doomed, refunding all already raised tokens back to investors
     Canceled, // stop to proceed
     Failed, // fail to raise enough amount to proceed
