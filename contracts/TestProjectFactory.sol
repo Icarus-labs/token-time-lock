@@ -28,44 +28,48 @@ contract TestProjectFactory is BaseProjectFactory {
         onlyPlatform
         returns (address p_addr)
     {
-        bytes memory creationCode = type(TestProjectTemplate).creationCode;
-        bytes memory bytecode =
-            abi.encodePacked(
-                creationCode,
-                abi.encode(project_id, symbol, platform, USDT_address)
-            );
-        address predict =
-            address(
-                uint160(
-                    uint256(
-                        keccak256(
-                            abi.encodePacked(
-                                bytes1(0xff),
-                                address(this),
-                                uint256(project_id),
-                                keccak256(bytecode)
-                            )
-                        )
-                    )
-                )
-            );
-        require(
-            !predict.isContract(),
-            "TestProjectFactory: contract address preoccupied"
-        );
-        assembly {
-            p_addr := create2(
-                0,
-                add(bytecode, 0x20),
-                mload(bytecode),
-                project_id
-            )
-        }
-        require(
-            predict == p_addr,
-            "TestProjectFactory: wrong address prediction"
-        );
-        BaseProjectTemplate(p_addr).transferOwnership(platform);
-        return p_addr;
+        TestProjectTemplate instance =
+            new TestProjectTemplate(project_id, symbol, platform, USDT_address);
+        instance.transferOwnership(platform);
+        return address(instance);
+        // bytes memory creationCode = type(TestProjectTemplate).creationCode;
+        // bytes memory bytecode =
+        //     abi.encodePacked(
+        //         creationCode,
+        //         abi.encode(project_id, symbol, platform, USDT_address)
+        //     );
+        // address predict =
+        //     address(
+        //         uint160(
+        //             uint256(
+        //                 keccak256(
+        //                     abi.encodePacked(
+        //                         bytes1(0xff),
+        //                         address(this),
+        //                         project_id,
+        //                         keccak256(bytecode)
+        //                     )
+        //                 )
+        //             )
+        //         )
+        //     );
+        // require(
+        //     !predict.isContract(),
+        //     "TestProjectFactory: contract address preoccupied"
+        // );
+        // assembly {
+        //     p_addr := create2(
+        //         0,
+        //         add(bytecode, 0x20),
+        //         mload(bytecode),
+        //         project_id
+        //     )
+        // }
+        // require(
+        //     predict == p_addr,
+        //     "TestProjectFactory: wrong address prediction"
+        // );
+        // BaseProjectTemplate(p_addr).transferOwnership(platform);
+        // return p_addr;
     }
 }

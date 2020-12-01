@@ -199,7 +199,7 @@ describe("ProjectTemplate replan situations", function () {
     await pt.heartbeat();
     expect(await projectTemplate.status()).to.equal(11);
     const pre_balance = await this.usdt.balanceOf(other.address);
-    await projectTemplate.connect(other).liquidate();
+    await miningEcoOther.liquidate(projectId);
     expect(
       (await this.usdt.balanceOf(other.address)).sub(pre_balance).toString()
     ).to.equal(new BN(200000).mul(D18).toString());

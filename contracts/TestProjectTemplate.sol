@@ -560,38 +560,55 @@ contract TestProjectTemplate is BaseProjectTemplate {
         actual_raised = actual_raised.add(amount);
     }
 
-    function refund() public {
+    function platform_refund(address account)
+        public
+        override
+        platformRequired
+        returns (uint256)
+    {
         heartbeat();
         require(
             status == ProjectStatus.Refunding,
             "ProjectTemplate: not in refunding"
         );
-        uint256 amount = _balances[msg.sender];
+        uint256 amount = _balances[account];
         require(amount > 0, "ProjectTemplate: no share");
-        USDT_address.safeTransfer(msg.sender, amount);
-        _transfer(msg.sender, address(this), amount);
+        USDT_address.safeTransfer(account, amount);
+        _transfer(account, address(this), amount);
+        return amount;
     }
 
-    function liquidate() public {
+    function platform_liquidate(address account)
+        public
+        override
+        platformRequired
+        returns (uint256, uint256)
+    {
         heartbeat();
         require(
             status == ProjectStatus.Liquidating,
             "ProjectTemplate: not in liquidating"
         );
-        uint256 amount = _balances[msg.sender];
+        uint256 amount = _balances[account];
         require(amount > 0, "ProjectTemplate: no share");
         uint256 l_amount = _locked_investment().mul(amount).div(actual_raised);
-        USDT_address.safeTransfer(msg.sender, l_amount);
-        _transfer(msg.sender, address(this), amount);
+        USDT_address.safeTransfer(account, l_amount);
+        _transfer(account, address(this), amount);
+        return (amount, l_amount);
     }
 
-    function repay() public {
+    function platform_repay(address account)
+        public
+        override
+        platformRequired
+        returns (uint256)
+    {
         heartbeat();
         require(
             status == ProjectStatus.Repaying,
             "ProjectTemplate: not in repaying"
         );
-        uint256 amount = _balances[msg.sender];
+        uint256 amount = _balances[account];
         require(amount > 0, "ProjectTemplate: no share");
         uint256 profit_total = amount.mul(profit_rate).div(10000).add(amount);
         uint256 this_usdt_balance = USDT_address.balanceOf(address(this));
@@ -599,22 +616,27 @@ contract TestProjectTemplate is BaseProjectTemplate {
         if (profit_total > this_usdt_balance) {
             profit_total = this_usdt_balance;
         }
-        _transfer(msg.sender, address(this), amount);
-        USDT_address.safeTransfer(msg.sender, profit_total);
+        _transfer(account, address(this), amount);
+        USDT_address.safeTransfer(account, profit_total);
+        return amount;
     }
 
-    function vote_against_phase(uint256 phase_id) public {
+    function vote_phase(uint256 phase_id, bool support) public {
         heartbeat();
         require(
             status == ProjectStatus.Rolling &&
                 uint256(current_phase) == phase_id,
             "ProjectTemplate: can't vote this phase"
         );
-        _cast_vote(msg.sender, phase_id, false);
+        _cast_vote(msg.sender, phase_id, support);
         _check_vote_result();
     }
 
-    function vote_for_replan() public {
+    function vote_against_phase(uint256 phase_id) public {
+        vote_phase(phase_id, false);
+    }
+
+    function vote_replan(bool support) public {
         heartbeat();
         require(
             status == ProjectStatus.ReplanVoting,
@@ -629,8 +651,12 @@ contract TestProjectTemplate is BaseProjectTemplate {
                 block.number < replan_votes.deadline,
             "ProjectTemplate: replan vote window is over"
         );
-        _cast_replan_vote(msg.sender, true);
+        _cast_replan_vote(msg.sender, support);
         _check_replan_vote_result();
+    }
+
+    function vote_for_replan() public {
+        vote_replan(true);
     }
 
     // can be triggered by any one out there, many thanks to those keeping the project running

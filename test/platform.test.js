@@ -53,4 +53,22 @@ describe("Proxy", function () {
     const [admin, platformManager, pm, other] = await ethers.getSigners();
     expect(await this.miningEco.initialized()).to.equal(true);
   });
+
+  it("only platform manager can set template", async function () {
+    const [
+      admin,
+      platformManager,
+      _1,
+      _2,
+      stranger,
+    ] = await ethers.getSigners();
+    await expect(
+      this.miningEco
+        .connect(stranger)
+        .set_template(0, "0x1D593d12e15b752d2Dcf8D3f4aA1f504Fe8E530F")
+    ).to.be.revertedWith("MiningEco: only manager");
+    await this.miningEco
+      .connect(platformManager)
+      .set_template(0, "0x1D593d12e15b752d2Dcf8D3f4aA1f504Fe8E530F");
+  });
 });

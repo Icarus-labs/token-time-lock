@@ -547,7 +547,7 @@ describe("ProjectTemplate lifetime changes", function () {
       .connect(pm)
       .transfer(pt.address, max.div(new BN(10)).add(max).toString());
     await pt.heartbeat();
-    await pt.connect(other).repay();
+    await miningEcoOther.repay(projectId);
     expect((await this.usdt.balanceOf(pt.address)).toString()).to.equal("0");
     expect(await pt.status()).to.equal(13);
     await pt.heartbeat();

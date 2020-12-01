@@ -18,6 +18,14 @@ interface IBaseProjectTemplate {
 
     function platform_invest(address account, uint256 amount) external;
 
+    function platform_liquidate(address account)
+        external
+        returns (uint256, uint256);
+
+    function platform_repay(address account) external returns (uint256);
+
+    function platform_refund(address account) external returns (uint256);
+
     function heartbeat() external;
 
     function transferOwnership(address) external;
@@ -61,6 +69,8 @@ contract MiningEco is HasConstantSlots {
     address public platform_token;
     address payable public insurance_vault;
     address public price_feed;
+    uint256 public total_raised;
+    uint256 public total_deposit;
 
     mapping(bytes32 => Project) public projects;
     mapping(address => bytes32) public projects_by_address;
@@ -111,6 +121,14 @@ contract MiningEco is HasConstantSlots {
         require(
             projects[id].addr == address(0),
             "MiningEco: project id conflicts"
+        );
+        _;
+    }
+
+    modifier onlyProjects() {
+        require(
+            projects_by_address[msg.sender] != bytes32(""),
+            "MiningEco: only valid projects"
         );
         _;
     }
@@ -179,26 +197,36 @@ contract MiningEco is HasConstantSlots {
     {
         address project_address = projects[project_id].addr;
         _invest(project_address, amount);
+        total_raised = total_raised.add(amount);
+        total_deposit = total_deposit.add(amount);
     }
 
-    function _invest(address project_address, uint256 amount) internal {
-        uint256 supply = IBaseProjectTemplate(project_address).totalSupply();
-        uint256 max = IBaseProjectTemplate(project_address).max_amount();
+    function liquidate(bytes32 project_id)
+        external
+        projectIdExists(project_id)
+    {
+        address project_address = projects[project_id].addr;
+        (uint256 amt, ) =
+            IBaseProjectTemplate(project_address).platform_liquidate(
+                msg.sender
+            );
+        _deduct_total_deposit(amt);
+    }
 
-        uint256 investment = amount;
-        if (max.sub(supply) < amount) {
-            investment = max.sub(supply);
-        }
+    function repay(bytes32 project_id) external projectIdExists(project_id) {
+        address project_address = projects[project_id].addr;
+        uint256 amt =
+            IBaseProjectTemplate(project_address).platform_repay(msg.sender);
+        _deduct_total_deposit(amt);
+    }
 
-        // hold the investment at our own disposal
-        USDT_address.safeTransferFrom(msg.sender, address(this), investment);
-        // mint project token to investor
-        IBaseProjectTemplate(project_address).platform_invest(
-            msg.sender,
-            investment
-        );
-        // lock investment in the project address
-        USDT_address.safeTransfer(project_address, investment);
+    function refund(bytes32 project_id) external projectIdExists(project_id) {
+        address project_address = projects[project_id].addr;
+        uint256 amt =
+            IBaseProjectTemplate(project_address).platform_refund(
+                project_address
+            );
+        _deduct_total_deposit(amt);
     }
 
     // new_project is the main entrance for a project mananger
@@ -230,18 +258,13 @@ contract MiningEco is HasConstantSlots {
             Project({addr: payable(project_addr), owner: msg.sender});
         projects[project_id] = p;
         projects_by_address[project_addr] = project_id;
-        append_new_project_to_user(msg.sender, project_id);
+        _append_new_project_to_user(msg.sender, project_id);
         if (init_calldata.length > 0) {
             project_addr.functionCall(init_calldata);
         }
         IBaseProjectTemplate(project_addr).transferOwnership(msg.sender);
 
         emit ProjectCreated(template_id, project_id, msg.sender);
-    }
-
-    function append_new_project_to_user(address user, bytes32 pid) internal {
-        bytes32[] storage pjs = users_projects[user];
-        pjs.push(pid);
     }
 
     function pay_insurance(bytes32 projectid)
@@ -259,7 +282,7 @@ contract MiningEco is HasConstantSlots {
             "MiningEco: not succeeded for insurance"
         );
         uint256 raised = IBaseProjectTemplate(project).actual_raised();
-        uint256 insurance = usdt2dada(raised.div(10));
+        uint256 insurance = usdt_to_platform_token(raised.div(10));
         IERC20(platform_token).safeTransferFrom(
             msg.sender,
             insurance_vault,
@@ -270,7 +293,7 @@ contract MiningEco is HasConstantSlots {
         emit ProjectInsurancePaid(projectid, insurance, msg.sender);
     }
 
-    function usdt2dada(uint256 amount) public returns (uint256) {
+    function usdt_to_platform_token(uint256 amount) public returns (uint256) {
         if (price_feed == address(0)) {
             // 1 : 1
             return amount;
@@ -282,5 +305,38 @@ contract MiningEco is HasConstantSlots {
                 );
             return token_amount;
         }
+    }
+
+    function _invest(address project_address, uint256 amount) internal {
+        uint256 supply = IBaseProjectTemplate(project_address).totalSupply();
+        uint256 max = IBaseProjectTemplate(project_address).max_amount();
+
+        uint256 investment = amount;
+        if (max.sub(supply) < amount) {
+            investment = max.sub(supply);
+        }
+
+        // hold the investment at our own disposal
+        USDT_address.safeTransferFrom(msg.sender, address(this), investment);
+        // mint project token to investor
+        IBaseProjectTemplate(project_address).platform_invest(
+            msg.sender,
+            investment
+        );
+        // lock investment in the project address
+        USDT_address.safeTransfer(project_address, investment);
+    }
+
+    function _append_new_project_to_user(address user, bytes32 pid) internal {
+        bytes32[] storage pjs = users_projects[user];
+        pjs.push(pid);
+    }
+
+    function _deduct_total_deposit(uint256 amount) internal {
+        require(
+            total_deposit.div(amount) >= 0,
+            "MiningEco: illegal total deposit deduction"
+        );
+        total_deposit = total_deposit.div(amount);
     }
 }
