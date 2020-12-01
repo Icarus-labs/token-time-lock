@@ -54,7 +54,7 @@ describe("Proxy", function () {
     expect(await this.miningEco.initialized()).to.equal(true);
   });
 
-  it("only platform manager can set template", async function () {
+  it("only platform committee can set template", async function () {
     const [
       admin,
       platformManager,
@@ -66,7 +66,7 @@ describe("Proxy", function () {
       this.miningEco
         .connect(stranger)
         .set_template(0, "0x1D593d12e15b752d2Dcf8D3f4aA1f504Fe8E530F")
-    ).to.be.revertedWith("MiningEco: only manager");
+    ).to.be.revertedWith("MiningEco: only committee");
     await this.miningEco
       .connect(platformManager)
       .set_template(0, "0x1D593d12e15b752d2Dcf8D3f4aA1f504Fe8E530F");

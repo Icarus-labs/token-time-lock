@@ -3,7 +3,10 @@
 pragma solidity >=0.4.22 <0.8.0;
 
 contract HasConstantSlots {
-    bytes32 constant _MANAGER_SLOT = 0x100b74df3939e619a7e753d01681bb00845b9ef188d887906e95c797d474d9c3;
+    // bytes32(uint256(keccak256("MiningEco.Platform.Committee")))
+    bytes32 constant _COMMITTEE_SLOT =
+        0x7090fa6e7ba86497228923d0ffeb304699d149da33caff1cc7c4e8abd5ba6147;
 
-    bytes32 constant _ADMIN_SLOT = 0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103;
+    bytes32 constant _ADMIN_SLOT =
+        0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103;
 }

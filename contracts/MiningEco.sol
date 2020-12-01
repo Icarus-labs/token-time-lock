@@ -106,14 +106,14 @@ contract MiningEco is HasConstantSlots {
         _;
     }
 
-    modifier isManager() {
-        address manager;
-        bytes32 slot = _MANAGER_SLOT;
+    modifier isCommittee() {
+        address committee;
+        bytes32 slot = _COMMITTEE_SLOT;
         // solhint-disable-next-line no-inline-assembly
         assembly {
-            manager := sload(slot)
+            committee := sload(slot)
         }
-        require(msg.sender == manager, "MiningEco: only manager");
+        require(msg.sender == committee, "MiningEco: only committee");
         _;
     }
 
@@ -156,7 +156,7 @@ contract MiningEco is HasConstantSlots {
         fee_rate = 50;
         insurance_rate = 1000;
 
-        slot = _MANAGER_SLOT;
+        slot = _COMMITTEE_SLOT;
         address _sender = msg.sender;
         // solhint-disable-next-line no-inline-assembly
         assembly {
@@ -165,25 +165,28 @@ contract MiningEco is HasConstantSlots {
         initialized = true;
     }
 
-    function set_price_feed(address _price_feed) public isManager {
+    function set_price_feed(address _price_feed) public isCommittee {
         require(_price_feed != address(0), "MiningEco: wrong address");
         price_feed = _price_feed;
     }
 
-    function set_platform_token(address addr) public isManager {
+    function set_platform_token(address addr) public isCommittee {
         require(addr != address(0), "MiningEco: wrong address");
         platform_token = addr;
     }
 
-    function set_insurance_vault(address payable vault) public isManager {
+    function set_insurance_vault(address payable vault) public isCommittee {
         insurance_vault = vault;
     }
 
-    function set_usdt(address a) public isManager {
+    function set_usdt(address a) public isCommittee {
         USDT_address = IERC20(a);
     }
 
-    function set_template(uint256 i, address projectTemplate) public isManager {
+    function set_template(uint256 i, address projectTemplate)
+        public
+        isCommittee
+    {
         if (projectTemplate == address(0)) {
             delete template_gallery[i];
         } else {
