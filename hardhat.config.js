@@ -3,7 +3,7 @@ require("@nomiclabs/hardhat-waffle");
 const fs = require("fs");
 const infuraKey = "e468cafc35eb43f0b6bd2ab4c83fa688";
 const privateKeys = JSON.parse(
-  fs.readFileSync("ropsten.secret.json").toString().trim()
+  fs.readFileSync("test.secret.json").toString().trim()
 );
 
 // This is a sample Hardhat task. To learn how to create your own go to
@@ -30,6 +30,13 @@ module.exports = {
       chainId: 3,
       url: `https://ropsten.infura.io/v3/${infuraKey}`,
       accounts: privateKeys,
+      timeout: 200000,
+    },
+    kovan: {
+      chainId: 42,
+      url: `https://kovan.infura.io/v3/${infuraKey}`,
+      accounts: privateKeys,
+      timeout: 200000,
     },
   },
   solidity: {

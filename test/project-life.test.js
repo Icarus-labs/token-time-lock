@@ -77,6 +77,7 @@ describe("ProjectTemplate lifetime changes", function () {
     const [admin, platformManager, pm, other] = await ethers.getSigners();
     const blockNumber = await getBlockNumber();
     const projectId = "0x" + cryptoRandomString({ length: 64 });
+    console.log(projectId);
     const ProjectTemplate = await ethers.getContractFactory(
       "TestProjectTemplate"
     );
@@ -107,6 +108,7 @@ describe("ProjectTemplate lifetime changes", function () {
         0,
       ]
     );
+    console.log(calldata);
     await this.dada
       .connect(pm)
       .approve(this.miningEco.address, this.balancePM.toString());
