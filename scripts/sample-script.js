@@ -59,12 +59,20 @@ async function main() {
 
   const dada_balance = new BN(5000000).mul(D18);
   await dada.mint(dada_balance.toString());
-  await dada.transfer(dara.address, dada_balance.toString());
+  // await dada.transfer(
+  //   "0x4072Eb9f4985998d161b2424988e470e64c75f26",
+  //   dada_balance.toString()
+  // );
   const usdt_balance = USDT_TOTAL.div(new BN(100));
   await usdt.mint(usdt_balance.toString());
-  await usdt.transfer(dara.address, usdt_balance.toString());
+  // await usdt.transfer(
+  //   "0x4072Eb9f4985998d161b2424988e470e64c75f26",
+  //   usdt_balance.toString()
+  // );
 
-  console.log(`initial balances have been given to ${dara.address}`);
+  console.log(
+    `initial balances have been given to 0x92E73408801e713f8371f8A8c31a40130ae61a40`
+  );
 }
 
 // We recommend this pattern to be able to use async/await everywhere
