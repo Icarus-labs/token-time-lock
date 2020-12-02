@@ -289,8 +289,8 @@ contract MiningEco is HasConstantSlots {
         returns (uint256)
     {
         if (price_feed == address(0)) {
-            // 1 : 1
-            return amount;
+            // 0.045$
+            return amount.mul(1000).div(45);
         } else {
             (uint256 token_amount, uint256 ts) =
                 IPriceFeed(price_feed).from_usdt_to_token(
