@@ -129,7 +129,7 @@ contract StakingToken is Context, IERC20, ReentrancyGuard {
         return _symbol;
     }
 
-    function decimal() public view returns (uint8) {
+    function decimals() public view returns (uint8) {
         return _decimals;
     }
 

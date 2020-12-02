@@ -4,6 +4,7 @@ pragma solidity >=0.4.22 <0.8.0;
 
 import "./ProjectToken.sol";
 import "./ProjectStatus.sol";
+
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
@@ -40,6 +41,8 @@ abstract contract BaseProjectTemplate is Ownable, ProjectToken {
     function mark_insurance_paid() public platformRequired {
         insurance_paid = true;
     }
+
+    function platform_audit(bool pass) external virtual;
 
     function platform_invest(address account, uint256 amount) external virtual;
 

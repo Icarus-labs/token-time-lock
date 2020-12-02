@@ -5,6 +5,7 @@ pragma solidity >=0.4.22 <0.8.0;
 pragma experimental ABIEncoderV2;
 
 import "./BaseProjectTemplate.sol";
+
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
@@ -54,6 +55,7 @@ contract TestProjectTemplate is BaseProjectTemplate {
     uint256 public constant REPLAN_VOTE_WINDOW = 3;
     uint256 public constant PHASE_KEEPALIVE = 3;
     uint256 public constant INSURANCE_WINDOW = 3;
+    uint256 public constant AUDIT_WINDOW = 5;
 
     IERC20 public USDT_address;
 
@@ -61,6 +63,7 @@ contract TestProjectTemplate is BaseProjectTemplate {
 
     uint256 public actual_raised;
     uint256 public min_amount;
+    uint256 public audit_end;
     uint256 public raise_start;
     uint256 public raise_end;
     int256 public current_phase;
@@ -90,6 +93,7 @@ contract TestProjectTemplate is BaseProjectTemplate {
     event ProjectReplanFailed(bytes32 project_id);
     event ProjectRepaying(bytes32 project_id);
     event ProjectFinished(bytes32 project_id);
+    event ProjectReplanNotice(bytes32 project_id);
 
     event ReplanVoteCast(address voter, bool support, uint256 votes);
 
@@ -167,21 +171,27 @@ contract TestProjectTemplate is BaseProjectTemplate {
         require(total_percent == 100, "ProjectTemplate: not 100 percent");
 
         fund_receiver = _recv;
+        audit_end = block.number + BLOCKS_PER_DAY * AUDIT_WINDOW;
         raise_start = _raise_start;
         raise_end = _raise_end;
         min_amount = _min;
         max_amount = _max;
         insurance_deadline = _raise_end + INSURANCE_WINDOW * BLOCKS_PER_DAY;
         require(
+            _raise_start >= audit_end,
+            "ProjectTemplate: raise start before audit end"
+        );
+        require(
             insurance_deadline <= _phases[0].start,
             "ProjectTemplate: phase start before insurance deadline"
         );
         repay_deadline = _repay_deadline;
         profit_rate = _profit_rate;
-        status = ProjectStatus.Initialized;
         for (uint256 i = 0; i < _replan_grants.length; i++) {
             who_can_replan[_replan_grants[i]] = true;
         }
+
+        status = ProjectStatus.Auditing;
     }
 
     function transferOwnership(address a) public virtual override onlyOwner {
@@ -263,6 +273,8 @@ contract TestProjectTemplate is BaseProjectTemplate {
     }
 
     function replan(PhaseInfo[] calldata _phases) public requireReplanAuth {
+        uint256 total_percent_left;
+        uint256 total_percent_new;
         if (status == ProjectStatus.Rolling) {
             require(
                 uint256(current_phase) + 1 < phases.length &&
@@ -271,6 +283,20 @@ contract TestProjectTemplate is BaseProjectTemplate {
                     block.number < phases[uint256(current_phase + 1)].start,
                 "ProjectTemplate: not allowed to replan"
             );
+            for (
+                uint256 i = uint256(current_phase) + 1;
+                i < phases.length;
+                i++
+            ) {
+                total_percent_left = total_percent_left.add(phases[i].percent);
+            }
+            for (uint256 j = 0; j < _phases.length; j++) {
+                total_percent_new = total_percent_new.add(_phases[j].percent);
+            }
+            require(
+                total_percent_left == total_percent_new,
+                "ProjectTemplate: inconsistent percent"
+            );
             _replan(_phases);
         } else {
             require(
@@ -278,27 +304,25 @@ contract TestProjectTemplate is BaseProjectTemplate {
                     status == ProjectStatus.ReplanFailed,
                 "ProjectTemplate: not allowed to replan"
             );
+            require(
+                block.number < phase_replan_deadline,
+                "ProjectTemplate: missing the replan window"
+            );
+            for (uint256 i = uint256(current_phase); i < phases.length; i++) {
+                total_percent_left = total_percent_left.add(phases[i].percent);
+            }
+            for (uint256 j = 0; j < _phases.length; j++) {
+                total_percent_new = total_percent_new.add(_phases[j].percent);
+            }
+            require(
+                total_percent_left == total_percent_new,
+                "ProjectTemplate: inconsistent percent"
+            );
             _replan(_phases);
         }
     }
 
     function _replan(PhaseInfo[] memory _phases) internal {
-        require(
-            block.number < phase_replan_deadline,
-            "ProjectTemplate: missing the replan window"
-        );
-        uint256 total_percent_left;
-        for (uint256 i = uint256(current_phase); i < phases.length; i++) {
-            total_percent_left = total_percent_left.add(phases[i].percent);
-        }
-        uint256 total_percent_new;
-        for (uint256 j = 0; j < _phases.length; j++) {
-            total_percent_new = total_percent_new.add(_phases[j].percent);
-        }
-        require(
-            total_percent_left == total_percent_new,
-            "ProjectTemplate: inconsistent percent"
-        );
         uint256 checkpoint = block.number + BLOCKS_PER_DAY * REPLAN_NOTICE;
         uint256 deadline = checkpoint + BLOCKS_PER_DAY * REPLAN_VOTE_WINDOW;
         require(
@@ -323,6 +347,8 @@ contract TestProjectTemplate is BaseProjectTemplate {
         replan_votes.checkpoint = checkpoint;
         replan_votes.deadline = deadline;
         phase_replan_deadline = 0;
+        status = ProjectStatus.ReplanNotice;
+        emit ProjectReplanNotice(id);
     }
 
     function _reset_replan_votes() internal {
@@ -332,12 +358,10 @@ contract TestProjectTemplate is BaseProjectTemplate {
         delete replan_votes.new_phases;
     }
 
-    function _heartbeat_initialized() internal returns (bool) {
-        if (block.number >= raise_start && block.number < raise_end) {
-            status = ProjectStatus.Raising;
-            emit ProjectRaising(id);
-            return true;
-        } else if (block.number >= raise_end) {
+    function _heartbeat_initialized() internal returns (bool) {}
+
+    function _heartbeat_auditing() internal returns (bool) {
+        if (block.number >= audit_end) {
             status = ProjectStatus.Failed;
             emit ProjectFailed(id);
             return true;
@@ -345,7 +369,7 @@ contract TestProjectTemplate is BaseProjectTemplate {
         return false;
     }
 
-    function _heartbeat_collecting() internal returns (bool) {
+    function _heartbeat_raising() internal returns (bool) {
         if (block.number >= raise_end) {
             if (actual_raised >= min_amount && actual_raised <= max_amount) {
                 status = ProjectStatus.Succeeded;
@@ -416,6 +440,14 @@ contract TestProjectTemplate is BaseProjectTemplate {
         }
 
         return again;
+    }
+
+    function _heartbeat_replannotice() internal returns (bool) {
+        if (block.number >= replan_votes.checkpoint) {
+            status = ProjectStatus.ReplanVoting;
+            emit ProjectReplanVoting(id);
+            return true;
+        }
     }
 
     function _heartbeat_phasefailed() internal returns (bool) {
@@ -491,41 +523,36 @@ contract TestProjectTemplate is BaseProjectTemplate {
 
             if (status == ProjectStatus.Initialized) {
                 again = _heartbeat_initialized();
-            }
-            if (status == ProjectStatus.Raising) {
-                again = _heartbeat_collecting();
-            }
-            if (
+            } else if (status == ProjectStatus.Auditing) {
+                again = _heartbeat_auditing();
+            } else if (status == ProjectStatus.Raising) {
+                again = _heartbeat_raising();
+            } else if (
                 status == ProjectStatus.Refunding &&
                 USDT_address.balanceOf(address(this)) == 0
             ) {
                 status = ProjectStatus.Failed;
                 emit ProjectFailed(id);
                 again = true;
-            }
-            if (status == ProjectStatus.Succeeded) {
+            } else if (status == ProjectStatus.Succeeded) {
                 again = _heartbeat_succeeded();
-            }
-            if (status == ProjectStatus.Rolling) {
+            } else if (status == ProjectStatus.Rolling) {
                 again = _heartbeat_rolling();
-            }
-            if (status == ProjectStatus.PhaseFailed) {
+            } else if (status == ProjectStatus.ReplanNotice) {
+                again = _heartbeat_replannotice();
+            } else if (status == ProjectStatus.PhaseFailed) {
                 again = _heartbeat_phasefailed();
-            }
-            if (status == ProjectStatus.ReplanVoting) {
+            } else if (status == ProjectStatus.ReplanVoting) {
                 again = _heartbeat_replanvoting();
-            }
-            if (status == ProjectStatus.ReplanFailed) {
+            } else if (status == ProjectStatus.ReplanFailed) {
                 again = _heartbeat_replanfailed();
-            }
-            if (status == ProjectStatus.Liquidating) {
+            } else if (status == ProjectStatus.Liquidating) {
                 if (USDT_address.balanceOf(address(this)) == 0) {
                     status = ProjectStatus.Failed;
                     emit ProjectFailed(id);
                     again = true;
                 }
-            }
-            if (status == ProjectStatus.AllPhasesDone) {
+            } else if (status == ProjectStatus.AllPhasesDone) {
                 if (
                     block.number < repay_deadline &&
                     USDT_address.balanceOf(address(this)) >= promised_repay
@@ -534,11 +561,24 @@ contract TestProjectTemplate is BaseProjectTemplate {
                     emit ProjectRepaying(id);
                     again = true;
                 }
-            }
-            if (status == ProjectStatus.Repaying) {
+            } else if (status == ProjectStatus.Repaying) {
                 again = _heartbeat_repaying();
             }
         } while (again);
+    }
+
+    function platform_audit(bool pass) public override platformRequired {
+        require(
+            status == ProjectStatus.Auditing && block.number < audit_end,
+            "ProjectTemplate: no audit window"
+        );
+        if (pass) {
+            status = ProjectStatus.Raising;
+            emit ProjectRaising(id);
+        } else {
+            status = ProjectStatus.Failed;
+            emit ProjectFailed(id);
+        }
     }
 
     // only platform can recieve investment

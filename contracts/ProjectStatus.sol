@@ -5,7 +5,7 @@ pragma solidity >=0.4.22 <0.8.0;
 // predefined project FSM
 enum ProjectStatus {
     Created, // just created, waiting for details
-    Initialized, // ready for raising USDT
+    Initialized, // ready for audition
     Raising, // raising funds
     Refunding, // somehow the project is doomed, refunding all already raised tokens back to investors
     Canceled, // stop to proceed
@@ -18,5 +18,7 @@ enum ProjectStatus {
     Liquidating, // the project is a failure, investors are getting the rest of their investment back
     AllPhasesDone, // there is nothing left to do, just wait for the magic
     Repaying, // project is done, repay profit to investors
-    Finished // the project has totally finished its destination
+    Finished, // the project has totally finished its destination
+    Auditing,
+    ReplanNotice
 }

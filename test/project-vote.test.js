@@ -7,7 +7,7 @@ const DADA_TOTAL_SUPPLY = new BN("10000000000000000000000000");
 const D18 = new BN("1000000000000000000");
 const USDT_TOTAL = new BN("1000000000000000000000000000000000000000000");
 
-describe("ProjectTemplate lifetime changes", function () {
+describe("ProjectTemplate illegal votes", function () {
   beforeEach(async function () {
     const StakingToken = await ethers.getContractFactory("StakingToken");
     this.dada = await StakingToken.deploy(
@@ -100,6 +100,7 @@ describe("ProjectTemplate lifetime changes", function () {
       other3,
     ] = await ethers.getSigners();
     const blockNumber = await getBlockNumber();
+    const auditWindow = 50;
     const miningEcoPM = this.miningEco.connect(pm);
     const projectId = "0x" + cryptoRandomString({ length: 64 });
     const ProjectTemplate = await ethers.getContractFactory(
@@ -109,13 +110,13 @@ describe("ProjectTemplate lifetime changes", function () {
     const max = D18.mul(new BN(1000000));
     const min = max.mul(new BN(8)).div(new BN(10));
     const profitRate = 1000;
-    const raiseStart = blockNumber;
-    const raiseEnd = blockNumber + 10;
+    const raiseStart = blockNumber + auditWindow + 10;
+    const raiseEnd = blockNumber + auditWindow + 10;
     const phases = [
-      [blockNumber + 40, blockNumber + 41, 80],
-      [blockNumber + 50, blockNumber + 60, 20],
+      [blockNumber + auditWindow + 50, blockNumber + auditWindow + 51, 80],
+      [blockNumber + auditWindow + 60, blockNumber + auditWindow + 70, 20],
     ];
-    const repayDeadline = blockNumber + 1000;
+    const repayDeadline = blockNumber + auditWindow + 1000;
     const replanGrants = [pm.address];
     const calldata = ProjectTemplate.interface.encodeFunctionData(
       initializeFrgmt,
@@ -143,14 +144,17 @@ describe("ProjectTemplate lifetime changes", function () {
       calldata
     );
     await sent.wait(1);
+
+    await this.miningEco
+      .connect(platformManager)
+      .audit_project(projectId, true);
+    await mineBlocks(auditWindow);
+
     let project = await miningEcoPM.projects(projectId);
     expect(project.owner).to.equal(pm.address);
 
     let projectTemplate = ProjectTemplate.attach(project.addr);
     let pt = projectTemplate.connect(pm);
-    expect(await projectTemplate.status()).to.equal(1);
-
-    await pt.heartbeat();
     expect(await projectTemplate.status()).to.equal(2);
 
     await this.usdt
@@ -170,7 +174,7 @@ describe("ProjectTemplate lifetime changes", function () {
       .approve(this.miningEco.address, max.toString());
     await this.miningEco.connect(other3).invest(projectId, max.toString());
 
-    await mineBlocks(10);
+    await mineBlocks(20);
     await this.miningEco.pay_insurance(projectId);
     await mineBlocks(30);
     await pt.heartbeat();

@@ -258,13 +258,14 @@ describe("MiningEco create project", function () {
     const max = D18.mul(new BN(2000000));
     const min = D18.mul(new BN(20000));
     const blockNumber = await getBlockNumber();
-    const raiseStart = blockNumber + 10;
-    const raiseEnd = blockNumber + 20;
-    const repayDeadline = blockNumber + 1000;
+    const auditWindow = 50;
+    const raiseStart = blockNumber + auditWindow + 10;
+    const raiseEnd = blockNumber + auditWindow + 20;
+    const repayDeadline = blockNumber + auditWindow + 1000;
     const profitRate = 1000;
     const phases = [
-      [blockNumber + 50, blockNumber + 60, 80],
-      [blockNumber + 60, blockNumber + 70, 20],
+      [blockNumber + auditWindow + 50, blockNumber + auditWindow + 60, 80],
+      [blockNumber + auditWindow + 60, blockNumber + auditWindow + 70, 20],
     ];
     const replanGrants = [pm.address];
     const calldata = ProjectTemplate.interface.encodeFunctionData(

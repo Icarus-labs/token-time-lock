@@ -4,53 +4,16 @@ pragma solidity >=0.4.22 <0.8.0;
 
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import "./HasConstantSlots.sol";
 import "./ProjectStatus.sol";
 
-interface IBaseProjectTemplate {
-    function setName(string calldata _name) external;
-
-    function insurance_paid() external returns (bool);
-
-    function mark_insurance_paid() external;
-
-    function platform_invest(address account, uint256 amount) external;
-
-    function platform_liquidate(address account)
-        external
-        returns (uint256, uint256);
-
-    function platform_repay(address account) external returns (uint256);
-
-    function platform_refund(address account) external returns (uint256);
-
-    function heartbeat() external;
-
-    function transferOwnership(address) external;
-
-    function totalSupply() external returns (uint256);
-
-    function max_amount() external returns (uint256);
-
-    function actual_raised() external returns (uint256);
-
-    function status() external returns (ProjectStatus);
-}
-
-interface IBaseProjectFactory {
-    function instantiate(bytes32 project_id, string calldata symbol)
-        external
-        returns (address);
-}
-
-interface IPriceFeed {
-    // get price in USDT
-    function from_usdt_to_token(uint256 amount, address token)
-        external
-        returns (uint256, uint256);
-}
+import "./interfaces/IBaseProjectTemplate.sol";
+import "./interfaces/IBaseProjectFactory.sol";
+import "./interfaces/IPriceFeed.sol";
 
 struct Project {
     address payable addr;
@@ -194,6 +157,30 @@ contract MiningEco is HasConstantSlots {
         }
     }
 
+    function set_new_committee(address _committee) public isCommittee {
+        bytes32 slot = _COMMITTEE_SLOT;
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            sstore(slot, _committee)
+        }
+    }
+
+    function committee_address() public view returns (address committee) {
+        bytes32 slot = _COMMITTEE_SLOT;
+        assembly {
+            committee := sload(slot)
+        }
+        return committee;
+    }
+
+    function audit_project(bytes32 project_id, bool yn)
+        public
+        isCommittee
+        projectIdExists(project_id)
+    {
+        IBaseProjectTemplate(projects[project_id].addr).platform_audit(yn);
+    }
+
     function invest(bytes32 project_id, uint256 amount)
         external
         projectIdExists(project_id)
@@ -265,7 +252,7 @@ contract MiningEco is HasConstantSlots {
         if (init_calldata.length > 0) {
             project_addr.functionCall(init_calldata);
         }
-        IBaseProjectTemplate(project_addr).transferOwnership(msg.sender);
+        Ownable(project_addr).transferOwnership(msg.sender);
 
         emit ProjectCreated(template_id, project_id, msg.sender);
     }
@@ -296,7 +283,11 @@ contract MiningEco is HasConstantSlots {
         emit ProjectInsurancePaid(projectid, insurance, msg.sender);
     }
 
-    function usdt_to_platform_token(uint256 amount) public returns (uint256) {
+    function usdt_to_platform_token(uint256 amount)
+        public
+        view
+        returns (uint256)
+    {
         if (price_feed == address(0)) {
             // 1 : 1
             return amount;
@@ -311,7 +302,7 @@ contract MiningEco is HasConstantSlots {
     }
 
     function _invest(address project_address, uint256 amount) internal {
-        uint256 supply = IBaseProjectTemplate(project_address).totalSupply();
+        uint256 supply = IERC20(project_address).totalSupply();
         uint256 max = IBaseProjectTemplate(project_address).max_amount();
 
         uint256 investment = amount;
