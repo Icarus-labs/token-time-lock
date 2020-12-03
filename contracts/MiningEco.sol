@@ -257,6 +257,21 @@ contract MiningEco is HasConstantSlots {
         emit ProjectCreated(template_id, project_id, msg.sender);
     }
 
+    function insurance(bytes32 projectid)
+        public
+        view
+        projectIdExists(projectid)
+        returns (uint256)
+    {
+        address project = projects[projectid].addr;
+        require(
+            IBaseProjectTemplate(project).status() == ProjectStatus.Succeeded,
+            "MiningEco: not succeeded for insurance"
+        );
+        uint256 raised = IBaseProjectTemplate(project).actual_raised();
+        return usdt_to_platform_token(raised.div(10));
+    }
+
     function pay_insurance(bytes32 projectid)
         public
         projectIdExists(projectid)

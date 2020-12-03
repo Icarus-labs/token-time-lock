@@ -7,7 +7,7 @@ import "../ProjectStatus.sol";
 interface IBaseProjectTemplate {
     function setName(string calldata _name) external;
 
-    function insurance_paid() external returns (bool);
+    function insurance_paid() external view returns (bool);
 
     function mark_insurance_paid() external;
 
@@ -25,9 +25,9 @@ interface IBaseProjectTemplate {
 
     function heartbeat() external;
 
-    function max_amount() external returns (uint256);
+    function max_amount() external view returns (uint256);
 
-    function actual_raised() external returns (uint256);
+    function actual_raised() external view returns (uint256);
 
-    function status() external returns (ProjectStatus);
+    function status() external view returns (ProjectStatus);
 }
