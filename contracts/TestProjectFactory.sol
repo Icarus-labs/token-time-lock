@@ -4,11 +4,8 @@ pragma solidity >=0.4.22 <0.8.0;
 
 import "./TestProjectTemplate.sol";
 import "./BaseProjectFactory.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
 
 contract TestProjectFactory is BaseProjectFactory {
-    using Address for address;
-
     address public USDT_address;
 
     constructor(address _platform, address usdt)

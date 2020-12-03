@@ -50,7 +50,8 @@ contract TestProjectTemplate is BaseProjectTemplate {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    uint256 public constant BLOCKS_PER_DAY = 10;
+    uint256 public BLOCKS_PER_DAY = 6500;
+
     uint256 public constant REPLAN_NOTICE = 1;
     uint256 public constant REPLAN_VOTE_WINDOW = 3;
     uint256 public constant PHASE_KEEPALIVE = 3;
@@ -124,6 +125,10 @@ contract TestProjectTemplate is BaseProjectTemplate {
         USDT_address = IERC20(_usdt);
     }
 
+    function set_blocks_per_day(uint256 blocks) public onlyOwner {
+        BLOCKS_PER_DAY = blocks;
+    }
+
     function initialize(
         address _recv,
         uint256 _raise_start,
@@ -134,7 +139,7 @@ contract TestProjectTemplate is BaseProjectTemplate {
         uint256 _profit_rate,
         PhaseInfo[] memory _phases,
         address[] memory _replan_grants,
-        uint256 _
+        uint256 __placeholder
     ) public onlyOwner projectJustCreated {
         require(_phases.length > 1, "ProjectTemplate: phase length");
         require(
@@ -272,6 +277,99 @@ contract TestProjectTemplate is BaseProjectTemplate {
         return (vp.start, vp.end, vp.closed, vp.result);
     }
 
+    function actual_project_status() public view returns (ProjectStatus) {
+        bool again = false;
+        ProjectStatus _status = status;
+        do {
+            again = false;
+            if (_status == ProjectStatus.Auditing) {
+                if (block.number >= audit_end) {
+                    (_status, again) = (ProjectStatus.Failed, true);
+                }
+            } else if (_status == ProjectStatus.Raising) {
+                if (block.number >= raise_end) {
+                    if (
+                        actual_raised >= min_amount &&
+                        actual_raised <= max_amount
+                    ) {
+                        (_status, again) = (ProjectStatus.Succeeded, true);
+                    } else {
+                        (_status, again) = (ProjectStatus.Refunding, true);
+                    }
+                }
+            } else if (
+                _status == ProjectStatus.Refunding &&
+                USDT_address.balanceOf(address(this)) == 0
+            ) {
+                _status = ProjectStatus.Failed;
+                again = true;
+            } else if (_status == ProjectStatus.Succeeded) {
+                if (
+                    block.number > insurance_deadline && insurance_paid == false
+                ) {
+                    (_status, again) = (ProjectStatus.Refunding, true);
+                } else if (block.number >= phases[0].start) {
+                    (_status, again) = (ProjectStatus.Rolling, true);
+                }
+            } else if (_status == ProjectStatus.ReplanNotice) {
+                if (block.number >= replan_votes.checkpoint) {
+                    (_status, again) = (ProjectStatus.ReplanVoting, true);
+                }
+            } else if (_status == ProjectStatus.PhaseFailed) {
+                if (
+                    phase_replan_deadline > 0 &&
+                    block.number >= phase_replan_deadline
+                ) {
+                    (_status, again) = (ProjectStatus.Liquidating, true);
+                } else if (
+                    replan_votes.checkpoint > 0 &&
+                    block.number >= replan_votes.checkpoint
+                ) {
+                    (_status, again) = (ProjectStatus.ReplanVoting, true);
+                }
+            } else if (_status == ProjectStatus.ReplanVoting) {
+                if (block.number >= replan_votes.deadline) {
+                    if (failed_replan_count + 1 >= 2) {
+                        (_status, again) = (ProjectStatus.Liquidating, true);
+                    } else {
+                        (_status, again) = (ProjectStatus.ReplanFailed, true);
+                    }
+                }
+            } else if (_status == ProjectStatus.ReplanFailed) {
+                if (
+                    failed_replan_count >= 2 ||
+                    (phase_replan_deadline > 0 &&
+                        block.number >= phase_replan_deadline)
+                ) {
+                    (_status, again) = (ProjectStatus.Liquidating, true);
+                } else if (
+                    replan_votes.checkpoint > 0 &&
+                    block.number >= replan_votes.checkpoint
+                ) {
+                    (_status, again) = (ProjectStatus.ReplanVoting, true);
+                }
+            } else if (_status == ProjectStatus.Liquidating) {
+                if (USDT_address.balanceOf(address(this)) == 0) {
+                    _status = ProjectStatus.Failed;
+                    again = true;
+                }
+            } else if (_status == ProjectStatus.AllPhasesDone) {
+                if (
+                    block.number < repay_deadline &&
+                    USDT_address.balanceOf(address(this)) >= promised_repay
+                ) {
+                    _status = ProjectStatus.Repaying;
+                    again = true;
+                }
+            } else if (_status == ProjectStatus.Repaying) {
+                if (USDT_address.balanceOf(address(this)) == 0) {
+                    (_status, again) = (ProjectStatus.Finished, true);
+                }
+            }
+        } while (again);
+        return _status;
+    }
+
     function replan(PhaseInfo[] calldata _phases) public requireReplanAuth {
         uint256 total_percent_left;
         uint256 total_percent_new;
@@ -357,8 +455,6 @@ contract TestProjectTemplate is BaseProjectTemplate {
         replan_votes.votes = VotesRecord({for_votes: 0, against_votes: 0});
         delete replan_votes.new_phases;
     }
-
-    function _heartbeat_initialized() internal returns (bool) {}
 
     function _heartbeat_auditing() internal returns (bool) {
         if (block.number >= audit_end) {
@@ -521,9 +617,7 @@ contract TestProjectTemplate is BaseProjectTemplate {
         do {
             again = false;
 
-            if (status == ProjectStatus.Initialized) {
-                again = _heartbeat_initialized();
-            } else if (status == ProjectStatus.Auditing) {
+            if (status == ProjectStatus.Auditing) {
                 again = _heartbeat_auditing();
             } else if (status == ProjectStatus.Raising) {
                 again = _heartbeat_raising();
