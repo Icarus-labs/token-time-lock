@@ -96,8 +96,14 @@ contract MiningEco is HasConstantSlots {
         _;
     }
 
+    event NewCommittee(address);
+    event ProjectAudit(bytes32 projectid, bool y);
     event ProjectCreated(uint256 template_id, bytes32 project_id, address who);
-    event ProjectInsurancePaid(bytes32 projectid, uint256, address who);
+    event ProjectInsurancePaid(bytes32 projectid, address who, uint256 amount);
+    event ProjectInvest(bytes32 projectid, address investor, uint256 amount);
+    event ProjectLiquidate(bytes32 projectid, address investor, uint256 amount);
+    event ProjectRefund(bytes32 projectid, address investor, uint256 amount);
+    event ProjectRepay(bytes32 projectid, address investor, uint256 amount);
 
     function initialize(
         address token,
@@ -163,6 +169,7 @@ contract MiningEco is HasConstantSlots {
         assembly {
             sstore(slot, _committee)
         }
+        emit NewCommittee(_committee);
     }
 
     function committee_address() public view returns (address committee) {
@@ -179,6 +186,7 @@ contract MiningEco is HasConstantSlots {
         projectIdExists(project_id)
     {
         IBaseProjectTemplate(projects[project_id].addr).platform_audit(yn);
+        emit ProjectAudit(project_id, yn);
     }
 
     function invest(bytes32 project_id, uint256 amount)
@@ -189,6 +197,7 @@ contract MiningEco is HasConstantSlots {
         _invest(project_address, amount);
         total_raised = total_raised.add(amount);
         total_deposit = total_deposit.add(amount);
+        emit ProjectInvest(project_id, msg.sender, amount);
     }
 
     function liquidate(bytes32 project_id)
@@ -201,6 +210,7 @@ contract MiningEco is HasConstantSlots {
                 msg.sender
             );
         _deduct_total_deposit(amt);
+        emit ProjectLiquidate(project_id, msg.sender, amt);
     }
 
     function repay(bytes32 project_id) external projectIdExists(project_id) {
@@ -208,6 +218,7 @@ contract MiningEco is HasConstantSlots {
         uint256 amt =
             IBaseProjectTemplate(project_address).platform_repay(msg.sender);
         _deduct_total_deposit(amt);
+        emit ProjectRepay(project_id, msg.sender, amt);
     }
 
     function refund(bytes32 project_id) external projectIdExists(project_id) {
@@ -217,6 +228,7 @@ contract MiningEco is HasConstantSlots {
                 project_address
             );
         _deduct_total_deposit(amt);
+        emit ProjectRefund(project_id, msg.sender, amt);
     }
 
     // new_project is the main entrance for a project mananger
@@ -295,7 +307,7 @@ contract MiningEco is HasConstantSlots {
         );
         IBaseProjectTemplate(project).mark_insurance_paid();
 
-        emit ProjectInsurancePaid(projectid, insurance, msg.sender);
+        emit ProjectInsurancePaid(projectid, msg.sender, insurance);
     }
 
     function usdt_to_platform_token(uint256 amount)
