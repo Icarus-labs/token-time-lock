@@ -10,7 +10,7 @@ enum ProjectStatus {
     Refunding, // somehow the project is doomed, refunding all already raised tokens back to investors
     Canceled, // stop to proceed
     Failed, // fail to raise enough amount to proceed
-    Succeeded, // enough amount raised, locked in this project, move on to vote-by-phase, aka rolling
+    Succeeded, // enough amount raised, locked in this project, insurance is expected
     Rolling, // voting to try get certain amount of locked tokens
     PhaseFailed, // when a phase has not been passed
     ReplanVoting, // voting for a new plan
@@ -21,5 +21,6 @@ enum ProjectStatus {
     Finished, // the project has totally finished its destination
     Auditing,
     ReplanNotice,
-    Audited
+    Audited,
+    InsurancePaid
 }

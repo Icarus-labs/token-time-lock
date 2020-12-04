@@ -17,7 +17,6 @@ abstract contract BaseProjectTemplate is Ownable, ProjectToken {
     ProjectStatus public status;
     uint256 public max_amount;
     uint256 public insurance_deadline;
-    bool public insurance_paid;
 
     modifier platformRequired() {
         require(
@@ -39,7 +38,7 @@ abstract contract BaseProjectTemplate is Ownable, ProjectToken {
     }
 
     function mark_insurance_paid() public platformRequired {
-        insurance_paid = true;
+        status = ProjectStatus.InsurancePaid;
     }
 
     function platform_audit(bool pass) external virtual;

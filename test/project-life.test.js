@@ -394,7 +394,7 @@ describe("ProjectTemplate lifetime changes", function () {
 
     await mineBlocks(20);
     await this.miningEco.pay_insurance(projectId);
-    expect(await projectTemplate.status()).to.equal(6);
+    expect(await projectTemplate.status()).to.equal(18);
     await mineBlocks(30);
 
     await pt.heartbeat();

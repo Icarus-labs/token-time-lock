@@ -2,6 +2,8 @@
 
 pragma solidity >=0.4.22 <0.8.0;
 
+pragma experimental ABIEncoderV2;
+
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -14,6 +16,8 @@ import "./ProjectStatus.sol";
 import "./interfaces/IBaseProjectTemplate.sol";
 import "./interfaces/IBaseProjectFactory.sol";
 import "./interfaces/IPriceFeed.sol";
+import "./interfaces/ICommittee.sol";
+import "./interfaces/IProjectAudit.sol";
 
 struct Project {
     address payable addr;
@@ -34,6 +38,7 @@ contract MiningEco is HasConstantSlots {
     address public price_feed;
     uint256 public total_raised;
     uint256 public total_deposit;
+    bool public supervised_by_committee;
 
     mapping(bytes32 => Project) public projects;
     mapping(address => bytes32) public projects_by_address;
@@ -163,13 +168,17 @@ contract MiningEco is HasConstantSlots {
         }
     }
 
-    function set_new_committee(address _committee) public isCommittee {
+    function set_new_committee(address _committee, bool isContract)
+        public
+        isCommittee
+    {
         bytes32 slot = _COMMITTEE_SLOT;
         // solhint-disable-next-line no-inline-assembly
         assembly {
             sstore(slot, _committee)
         }
         emit NewCommittee(_committee);
+        supervised_by_committee = isContract;
     }
 
     function committee_address() public view returns (address committee) {
@@ -267,6 +276,27 @@ contract MiningEco is HasConstantSlots {
         Ownable(project_addr).transferOwnership(msg.sender);
 
         emit ProjectCreated(template_id, project_id, msg.sender);
+        if (supervised_by_committee) {
+            address[] memory targets = new address[](1);
+            targets[0] = address(this);
+            uint256[] memory values = new uint256[](1);
+            values[0] = 0;
+            string[] memory sigs = new string[](1);
+            bytes[] memory calldatas = new bytes[](1);
+            calldatas[0] = abi.encodeWithSelector(
+                this.audit_project.selector,
+                project_id,
+                true
+            );
+            ICommittee(committee_address()).propose(
+                targets,
+                values,
+                sigs,
+                calldatas,
+                block.number + 1,
+                IProjectAudit(project_addr).audit_end()
+            );
+        }
     }
 
     function insurance(bytes32 projectid)
@@ -289,10 +319,6 @@ contract MiningEco is HasConstantSlots {
         projectIdExists(projectid)
     {
         address project = projects[projectid].addr;
-        require(
-            false == IBaseProjectTemplate(project).insurance_paid(),
-            "MiningEco: insurance paid"
-        );
         IBaseProjectTemplate(project).heartbeat();
         require(
             IBaseProjectTemplate(project).status() == ProjectStatus.Succeeded,

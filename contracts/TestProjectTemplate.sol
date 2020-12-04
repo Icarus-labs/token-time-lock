@@ -95,7 +95,7 @@ contract TestProjectTemplate is BaseProjectTemplate {
     event ProjectRepaying(bytes32 project_id);
     event ProjectFinished(bytes32 project_id);
     event ProjectReplanNotice(bytes32 project_id);
-
+    event ProjectReplaned(bytes32 project_id);
     event ReplanVoteCast(address voter, bool support, uint256 votes);
 
     modifier projectJustCreated() {
@@ -308,11 +308,11 @@ contract TestProjectTemplate is BaseProjectTemplate {
                 _status = ProjectStatus.Failed;
                 again = true;
             } else if (_status == ProjectStatus.Succeeded) {
-                if (
-                    block.number > insurance_deadline && insurance_paid == false
-                ) {
+                if (block.number > insurance_deadline) {
                     (_status, again) = (ProjectStatus.Refunding, true);
-                } else if (block.number >= phases[0].start) {
+                }
+            } else if (_status == ProjectStatus.InsurancePaid) {
+                if (block.number >= phases[0].start) {
                     (_status, again) = (ProjectStatus.Rolling, true);
                 }
             } else if (_status == ProjectStatus.ReplanNotice) {
@@ -485,22 +485,15 @@ contract TestProjectTemplate is BaseProjectTemplate {
     }
 
     function _heartbeat_succeeded() internal returns (bool) {
-        VotingPhase memory first_vp = phases[0];
         if (block.number >= raise_end && promised_repay == 0) {
             promised_repay = actual_raised.add(
                 actual_raised.mul(profit_rate).div(10000)
             );
         }
-        if (block.number > insurance_deadline && insurance_paid == false) {
+        if (block.number > insurance_deadline) {
             status = ProjectStatus.Refunding;
             emit ProjectInsuranceFailure(id);
             emit ProjectRefunding(id);
-            return true;
-        } else if (block.number >= first_vp.start) {
-            status = ProjectStatus.Rolling;
-            current_phase = 0;
-            emit ProjectRolling(id);
-            emit ProjectPhaseChange(id, uint256(current_phase));
             return true;
         }
         return false;
@@ -640,6 +633,14 @@ contract TestProjectTemplate is BaseProjectTemplate {
                 again = true;
             } else if (status == ProjectStatus.Succeeded) {
                 again = _heartbeat_succeeded();
+            } else if (status == ProjectStatus.InsurancePaid) {
+                if (block.number >= phases[0].start) {
+                    status = ProjectStatus.Rolling;
+                    current_phase = 0;
+                    emit ProjectRolling(id);
+                    emit ProjectPhaseChange(id, uint256(current_phase));
+                    again = true;
+                }
             } else if (status == ProjectStatus.Rolling) {
                 again = _heartbeat_rolling();
             } else if (status == ProjectStatus.ReplanNotice) {
