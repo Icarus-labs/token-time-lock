@@ -111,10 +111,10 @@ describe("ProjectTemplate illegal votes", function () {
     const min = max.mul(new BN(8)).div(new BN(10));
     const profitRate = 1000;
     const raiseStart = blockNumber + auditWindow + 10;
-    const raiseEnd = blockNumber + auditWindow + 10;
+    const raiseEnd = blockNumber + auditWindow + 30;
     const phases = [
-      [blockNumber + auditWindow + 50, blockNumber + auditWindow + 51, 80],
-      [blockNumber + auditWindow + 60, blockNumber + auditWindow + 70, 20],
+      [blockNumber + auditWindow + 60, blockNumber + auditWindow + 61, 80],
+      [blockNumber + auditWindow + 70, blockNumber + auditWindow + 80, 20],
     ];
     const repayDeadline = blockNumber + auditWindow + 1000;
     const replanGrants = [pm.address];
@@ -155,8 +155,10 @@ describe("ProjectTemplate illegal votes", function () {
 
     let projectTemplate = ProjectTemplate.attach(project.addr);
     let pt = projectTemplate.connect(pm);
+    expect(await projectTemplate.status()).to.equal(17);
+    await mineBlocks(10);
+    await pt.heartbeat();
     expect(await projectTemplate.status()).to.equal(2);
-
     await this.usdt
       .connect(other1)
       .approve(this.miningEco.address, max.toString());
@@ -174,9 +176,9 @@ describe("ProjectTemplate illegal votes", function () {
       .approve(this.miningEco.address, max.toString());
     await this.miningEco.connect(other3).invest(projectId, max.toString());
 
-    await mineBlocks(20);
+    await mineBlocks(10);
     await this.miningEco.pay_insurance(projectId);
-    await mineBlocks(30);
+    await mineBlocks(40);
     await pt.heartbeat();
     expect(await projectTemplate.current_phase()).to.equal(1);
 

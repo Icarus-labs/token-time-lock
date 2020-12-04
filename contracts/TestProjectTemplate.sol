@@ -286,6 +286,10 @@ contract TestProjectTemplate is BaseProjectTemplate {
                 if (block.number >= audit_end) {
                     (_status, again) = (ProjectStatus.Failed, true);
                 }
+            } else if (_status == ProjectStatus.Audited) {
+                if (block.number >= raise_start && block.number < raise_end) {
+                    (_status, again) = (ProjectStatus.Raising, false);
+                }
             } else if (_status == ProjectStatus.Raising) {
                 if (block.number >= raise_end) {
                     if (
@@ -619,6 +623,12 @@ contract TestProjectTemplate is BaseProjectTemplate {
 
             if (status == ProjectStatus.Auditing) {
                 again = _heartbeat_auditing();
+            } else if (status == ProjectStatus.Audited) {
+                if (block.number >= raise_start) {
+                    status = ProjectStatus.Raising;
+                    again = true;
+                    emit ProjectRaising(id);
+                }
             } else if (status == ProjectStatus.Raising) {
                 again = _heartbeat_raising();
             } else if (
@@ -667,8 +677,7 @@ contract TestProjectTemplate is BaseProjectTemplate {
             "ProjectTemplate: no audit window"
         );
         if (pass) {
-            status = ProjectStatus.Raising;
-            emit ProjectRaising(id);
+            status = ProjectStatus.Audited;
         } else {
             status = ProjectStatus.Failed;
             emit ProjectFailed(id);

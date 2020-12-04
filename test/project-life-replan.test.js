@@ -118,7 +118,7 @@ describe("ProjectTemplate replan situations", function () {
     await this.miningEco
       .connect(platformManager)
       .audit_project(projectId, true);
-    await mineBlocks(auditWindow);
+    await mineBlocks(auditWindow + 10);
     let project = await miningEcoPM.projects(projectId);
     let projectTemplate = ProjectTemplate.attach(project.addr);
     let pt = projectTemplate.connect(pm);
@@ -128,7 +128,7 @@ describe("ProjectTemplate replan situations", function () {
       .connect(other)
       .approve(miningEcoOther.address, max.toString());
     await miningEcoOther.invest(projectId, max.toString());
-    await mineBlocks(20);
+    await mineBlocks(10);
     await this.miningEco.pay_insurance(projectId);
     await mineBlocks(30);
     await pt.heartbeat();
@@ -201,7 +201,7 @@ describe("ProjectTemplate replan situations", function () {
     await this.miningEco
       .connect(platformManager)
       .audit_project(projectId, true);
-    await mineBlocks(auditWindow);
+    await mineBlocks(auditWindow + 10);
     let project = await miningEcoPM.projects(projectId);
     let projectTemplate = ProjectTemplate.attach(project.addr);
     let pt = projectTemplate.connect(pm);
@@ -211,7 +211,7 @@ describe("ProjectTemplate replan situations", function () {
       .connect(other)
       .approve(miningEcoOther.address, max.toString());
     await miningEcoOther.invest(projectId, max.toString());
-    await mineBlocks(20);
+    await mineBlocks(10);
     await this.miningEco.pay_insurance(projectId);
     await mineBlocks(40);
     await pt.heartbeat();
@@ -272,7 +272,7 @@ describe("ProjectTemplate replan situations", function () {
     await this.miningEco
       .connect(platformManager)
       .audit_project(projectId, true);
-    await mineBlocks(auditWindow);
+    await mineBlocks(auditWindow + 10);
     let project = await miningEcoPM.projects(projectId);
     let projectTemplate = ProjectTemplate.attach(project.addr);
     let pt = projectTemplate.connect(pm);
@@ -282,7 +282,7 @@ describe("ProjectTemplate replan situations", function () {
       .connect(other)
       .approve(miningEcoOther.address, max.toString());
     await miningEcoOther.invest(projectId, max.toString());
-    await mineBlocks(20);
+    await mineBlocks(10);
     await this.miningEco.pay_insurance(projectId);
     await mineBlocks(40);
     await pt.heartbeat();
@@ -350,7 +350,7 @@ describe("ProjectTemplate replan situations", function () {
     await this.miningEco
       .connect(platformManager)
       .audit_project(projectId, true);
-    await mineBlocks(auditWindow);
+    await mineBlocks(auditWindow + 10);
     let project = await miningEcoPM.projects(projectId);
     let projectTemplate = ProjectTemplate.attach(project.addr);
     let pt = projectTemplate.connect(pm);
@@ -360,7 +360,7 @@ describe("ProjectTemplate replan situations", function () {
       .connect(other)
       .approve(miningEcoOther.address, max.toString());
     await miningEcoOther.invest(projectId, max.toString());
-    await mineBlocks(20);
+    await mineBlocks(10);
     await this.miningEco.pay_insurance(projectId);
     await mineBlocks(40);
     await pt.heartbeat();
@@ -432,7 +432,7 @@ describe("ProjectTemplate replan situations", function () {
     await this.miningEco
       .connect(platformManager)
       .audit_project(projectId, true);
-    await mineBlocks(auditWindow);
+    await mineBlocks(auditWindow + 10);
     let project = await miningEcoPM.projects(projectId);
     let projectTemplate = ProjectTemplate.attach(project.addr);
     let pt = projectTemplate.connect(pm);
@@ -442,7 +442,7 @@ describe("ProjectTemplate replan situations", function () {
       .connect(other)
       .approve(miningEcoOther.address, max.toString());
     await miningEcoOther.invest(projectId, max.toString());
-    await mineBlocks(20);
+    await mineBlocks(10);
     await this.miningEco.pay_insurance(projectId);
     await mineBlocks(40);
     await pt.heartbeat();
@@ -515,7 +515,7 @@ describe("ProjectTemplate replan situations", function () {
     await this.miningEco
       .connect(platformManager)
       .audit_project(projectId, true);
-    await mineBlocks(auditWindow);
+    await mineBlocks(auditWindow + 10);
     let project = await miningEcoPM.projects(projectId);
     let projectTemplate = ProjectTemplate.attach(project.addr);
     let pt = projectTemplate.connect(pm);
@@ -525,7 +525,7 @@ describe("ProjectTemplate replan situations", function () {
       .connect(other)
       .approve(miningEcoOther.address, max.toString());
     await miningEcoOther.invest(projectId, max.toString());
-    await mineBlocks(20);
+    await mineBlocks(10);
     await this.miningEco.pay_insurance(projectId);
     await mineBlocks(40);
     await pt.heartbeat();

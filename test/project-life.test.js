@@ -240,7 +240,7 @@ describe("ProjectTemplate lifetime changes", function () {
     await this.miningEco
       .connect(platformManager)
       .audit_project(projectId, true);
-    expect(await projectTemplate.status()).to.equal(2);
+    expect(await projectTemplate.status()).to.equal(17);
   });
 
   it("first phase auto release", async function () {
@@ -293,7 +293,7 @@ describe("ProjectTemplate lifetime changes", function () {
     await this.miningEco
       .connect(platformManager)
       .audit_project(projectId, true);
-    await mineBlocks(auditWindow);
+    await mineBlocks(auditWindow + 10);
     let projectTemplate = ProjectTemplate.attach(project.addr);
     let pt = projectTemplate.connect(pm);
     const miningEcoOther = this.miningEco.connect(other);
@@ -306,7 +306,7 @@ describe("ProjectTemplate lifetime changes", function () {
     );
     expect(await projectTemplate.status()).to.equal(2);
 
-    await mineBlocks(20);
+    await mineBlocks(10);
     await pt.heartbeat();
     expect(await projectTemplate.status()).to.equal(6);
 
@@ -378,8 +378,9 @@ describe("ProjectTemplate lifetime changes", function () {
 
     let projectTemplate = ProjectTemplate.attach(project.addr);
     let pt = projectTemplate.connect(pm);
-    expect(await projectTemplate.status()).to.equal(2);
-
+    expect(await projectTemplate.status()).to.equal(17);
+    await mineBlocks(10);
+    await pt.heartbeat();
     const miningEcoOther = this.miningEco.connect(other);
     await this.usdt
       .connect(other)
@@ -401,8 +402,6 @@ describe("ProjectTemplate lifetime changes", function () {
     expect((await this.usdt.balanceOf(pm.address)).toString()).to.equal(
       max.mul(new BN(8)).div(new BN(10)).add(this.usdtPM).toString()
     );
-    await mineBlocks(10);
-    await pt.heartbeat();
     expect(await projectTemplate.current_phase()).to.equal(1);
     await mineBlocks(10);
     await pt.heartbeat();
@@ -472,8 +471,8 @@ describe("ProjectTemplate lifetime changes", function () {
 
     let projectTemplate = ProjectTemplate.attach(project.addr);
     let pt = projectTemplate.connect(pm);
-    expect(await projectTemplate.status()).to.equal(2);
-
+    expect(await projectTemplate.status()).to.equal(17);
+    await mineBlocks(10);
     const miningEcoOther = this.miningEco.connect(other);
     await this.usdt
       .connect(other)
@@ -485,7 +484,7 @@ describe("ProjectTemplate lifetime changes", function () {
     );
     expect(await projectTemplate.status()).to.equal(2);
 
-    await mineBlocks(20);
+    await mineBlocks(10);
     await this.miningEco.pay_insurance(projectId);
     await mineBlocks(30);
 
@@ -558,7 +557,7 @@ describe("ProjectTemplate lifetime changes", function () {
 
     let projectTemplate = ProjectTemplate.attach(project.addr);
     let pt = projectTemplate.connect(pm);
-
+    await mineBlocks(10);
     await pt.heartbeat();
 
     const miningEcoOther = this.miningEco.connect(other);
@@ -567,7 +566,7 @@ describe("ProjectTemplate lifetime changes", function () {
       .approve(miningEcoOther.address, max.toString());
     await miningEcoOther.invest(projectId, max.toString());
 
-    await mineBlocks(20);
+    await mineBlocks(10);
     await this.miningEco.pay_insurance(projectId);
     await mineBlocks(40);
     await pt.heartbeat();
@@ -649,8 +648,9 @@ describe("ProjectTemplate lifetime changes", function () {
     await this.usdt
       .connect(other)
       .approve(miningEcoOther.address, max.toString());
+    await mineBlocks(10);
     await miningEcoOther.invest(projectId, max.toString());
-    await mineBlocks(20);
+    await mineBlocks(10);
     await this.miningEco.pay_insurance(projectId);
     await mineBlocks(50);
     await pt.heartbeat();
@@ -713,7 +713,7 @@ describe("ProjectTemplate lifetime changes", function () {
     await this.miningEco
       .connect(platformManager)
       .audit_project(projectId, true);
-    await mineBlocks(auditWindow);
+    await mineBlocks(auditWindow + 10);
     let project = await this.miningEco.projects(projectId);
     let projectTemplate = ProjectTemplate.attach(project.addr);
     let pt = projectTemplate.connect(pm);
@@ -723,7 +723,7 @@ describe("ProjectTemplate lifetime changes", function () {
       .connect(other)
       .approve(miningEcoOther.address, max.toString());
     await miningEcoOther.invest(projectId, max.toString());
-    await mineBlocks(20);
+    await mineBlocks(10);
     await this.miningEco.pay_insurance(projectId);
     await mineBlocks(50);
     await pt.heartbeat();

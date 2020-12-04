@@ -299,15 +299,15 @@ contract MiningEco is HasConstantSlots {
             "MiningEco: not succeeded for insurance"
         );
         uint256 raised = IBaseProjectTemplate(project).actual_raised();
-        uint256 insurance = usdt_to_platform_token(raised.div(10));
+        uint256 insurance_amt = usdt_to_platform_token(raised.div(10));
         IERC20(platform_token).safeTransferFrom(
             msg.sender,
             insurance_vault,
-            insurance
+            insurance_amt
         );
         IBaseProjectTemplate(project).mark_insurance_paid();
 
-        emit ProjectInsurancePaid(projectid, msg.sender, insurance);
+        emit ProjectInsurancePaid(projectid, msg.sender, insurance_amt);
     }
 
     function usdt_to_platform_token(uint256 amount)

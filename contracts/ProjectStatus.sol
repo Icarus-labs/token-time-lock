@@ -20,5 +20,6 @@ enum ProjectStatus {
     Repaying, // project is done, repay profit to investors
     Finished, // the project has totally finished its destination
     Auditing,
-    ReplanNotice
+    ReplanNotice,
+    Audited
 }
