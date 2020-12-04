@@ -139,6 +139,11 @@ contract MiningCommittee {
         _;
     }
 
+    modifier onlyCommitteeMember(address addr) {
+        require(members[addr] > 0, "MiningCommittee: only committee member");
+        _;
+    }
+
     constructor() public {
         guardian = msg.sender;
         total_voting_power = 0;
@@ -372,7 +377,7 @@ contract MiningCommittee {
         address voter,
         uint256 proposalId,
         bool support
-    ) internal {
+    ) internal onlyCommitteeMember(voter) {
         require(
             state(proposalId) == ProposalState.Active,
             "MiningCommittee: voting is closed"

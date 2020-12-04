@@ -120,7 +120,6 @@ describe("ProjectTemplate lifetime changes", function () {
     );
     await sent.wait(1);
     let project = await this.miningEco.projects(projectId);
-    expect(project.owner).to.equal(pm.address);
     let projectTemplate = ProjectTemplate.attach(project.addr);
     let pt = projectTemplate.connect(pm);
     expect(await projectTemplate.status()).to.equal(15);
@@ -176,7 +175,6 @@ describe("ProjectTemplate lifetime changes", function () {
     );
     await sent.wait(1);
     let project = await this.miningEco.projects(projectId);
-    expect(project.owner).to.equal(pm.address);
     let projectTemplate = ProjectTemplate.attach(project.addr);
     let pt = projectTemplate.connect(pm);
     expect(await projectTemplate.status()).to.equal(15);
@@ -233,7 +231,6 @@ describe("ProjectTemplate lifetime changes", function () {
     );
     await sent.wait(1);
     let project = await this.miningEco.projects(projectId);
-    expect(project.owner).to.equal(pm.address);
     let projectTemplate = ProjectTemplate.attach(project.addr);
     let pt = projectTemplate.connect(pm);
     expect(await projectTemplate.status()).to.equal(15);
@@ -374,8 +371,6 @@ describe("ProjectTemplate lifetime changes", function () {
       .audit_project(projectId, true);
     await mineBlocks(auditWindow);
     let project = await this.miningEco.projects(projectId);
-    expect(project.owner).to.equal(pm.address);
-
     let projectTemplate = ProjectTemplate.attach(project.addr);
     let pt = projectTemplate.connect(pm);
     expect(await projectTemplate.status()).to.equal(17);
@@ -467,7 +462,6 @@ describe("ProjectTemplate lifetime changes", function () {
       .audit_project(projectId, true);
     await mineBlocks(auditWindow);
     let project = await miningEcoPM.projects(projectId);
-    expect(project.owner).to.equal(pm.address);
 
     let projectTemplate = ProjectTemplate.attach(project.addr);
     let pt = projectTemplate.connect(pm);

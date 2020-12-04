@@ -21,7 +21,7 @@ import "./interfaces/IProjectAudit.sol";
 
 struct Project {
     address payable addr;
-    address payable owner;
+    uint256 proposal_id;
 }
 
 contract MiningEco is HasConstantSlots {
@@ -266,10 +266,7 @@ contract MiningEco is HasConstantSlots {
                 symbol
             );
         Project memory p =
-            Project({addr: payable(project_addr), owner: msg.sender});
-        projects[project_id] = p;
-        projects_by_address[project_addr] = project_id;
-        _append_new_project_to_user(msg.sender, project_id);
+            Project({addr: payable(project_addr), proposal_id: 0});
         if (init_calldata.length > 0) {
             project_addr.functionCall(init_calldata);
         }
@@ -288,15 +285,21 @@ contract MiningEco is HasConstantSlots {
                 project_id,
                 true
             );
-            ICommittee(committee_address()).propose(
-                targets,
-                values,
-                sigs,
-                calldatas,
-                block.number + 1,
-                IProjectAudit(project_addr).audit_end()
-            );
+            uint256 proposal_id =
+                ICommittee(committee_address()).propose(
+                    targets,
+                    values,
+                    sigs,
+                    calldatas,
+                    block.number + 1,
+                    IProjectAudit(project_addr).audit_end()
+                );
+            p.proposal_id = proposal_id;
         }
+
+        projects[project_id] = p;
+        projects_by_address[project_addr] = project_id;
+        _append_new_project_to_user(msg.sender, project_id);
     }
 
     function insurance(bytes32 projectid)

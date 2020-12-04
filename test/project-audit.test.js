@@ -74,7 +74,15 @@ describe("Project audit by committee", function () {
   });
 
   it("audit succeed", async function () {
-    const [admin, platformManager, pm, other] = await ethers.getSigners();
+    const [
+      admin,
+      platformManager,
+      pm,
+      other,
+      cmt1,
+      cmt2,
+      cmt3,
+    ] = await ethers.getSigners();
     const blockNumber = await getBlockNumber();
     const projectId = "0x" + cryptoRandomString({ length: 64 });
     const ProjectTemplate = await ethers.getContractFactory(
@@ -82,7 +90,9 @@ describe("Project audit by committee", function () {
     );
     const Committee = await ethers.getContractFactory("MiningCommittee");
     const committee = await Committee.deploy();
-    await committee.update_member(other.address, 10);
+    await committee.update_member(cmt1.address, 1);
+    await committee.update_member(cmt2.address, 1);
+    await committee.update_member(cmt3.address, 1);
     await this.miningEco
       .connect(platformManager)
       .set_new_committee(committee.address, true);
@@ -128,12 +138,163 @@ describe("Project audit by committee", function () {
     );
     await sent.wait(1);
     let project = await this.miningEco.projects(projectId);
-    expect(project.owner).to.equal(pm.address);
     let projectTemplate = ProjectTemplate.attach(project.addr);
     let pt = projectTemplate.connect(pm);
     expect(await projectTemplate.status()).to.equal(15);
     await mineBlocks(1);
-    await committee.connect(other).vote(1, true);
+    await committee.connect(cmt1).vote(1, true);
+    expect(await pt.status()).to.equal(15);
+    await committee.connect(cmt2).vote(1, false);
+    await committee.connect(cmt3).vote(1, true);
     expect(await pt.status()).to.equal(17);
+  });
+
+  it("non-member vote", async function () {
+    const [
+      admin,
+      platformManager,
+      pm,
+      other,
+      cmt1,
+      cmt2,
+      cmt3,
+    ] = await ethers.getSigners();
+    const blockNumber = await getBlockNumber();
+    const projectId = "0x" + cryptoRandomString({ length: 64 });
+    const ProjectTemplate = await ethers.getContractFactory(
+      "TestProjectTemplate"
+    );
+    const Committee = await ethers.getContractFactory("MiningCommittee");
+    const committee = await Committee.deploy();
+    await committee.update_member(cmt1.address, 1);
+    await committee.update_member(cmt2.address, 1);
+    await committee.update_member(cmt3.address, 1);
+    await this.miningEco
+      .connect(platformManager)
+      .set_new_committee(committee.address, true);
+    await committee.update_supervised(this.miningEco.address, true);
+
+    const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
+    const max = D18.mul(new BN(1000000));
+    const min = max.mul(new BN(8)).div(new BN(10));
+    const auditWindow = 50;
+    const profitRate = 1000;
+    const raiseStart = blockNumber + auditWindow + 10;
+    const raiseEnd = blockNumber + auditWindow + 20;
+    const phases = [
+      [blockNumber + auditWindow + 50, blockNumber + auditWindow + 51, 80],
+      [blockNumber + auditWindow + 60, blockNumber + auditWindow + 70, 20],
+    ];
+    const repayDeadline = blockNumber + auditWindow + 1000;
+    const replanGrants = [pm.address];
+    const calldata = ProjectTemplate.interface.encodeFunctionData(
+      initializeFrgmt,
+      [
+        pm.address,
+        raiseStart,
+        raiseEnd,
+        min.toString(),
+        max.toString(),
+        repayDeadline,
+        profitRate,
+        phases,
+        replanGrants,
+        0,
+      ]
+    );
+    await this.dada
+      .connect(pm)
+      .approve(this.miningEco.address, this.balancePM.toString());
+    sent = await this.miningEco.new_project(
+      0,
+      projectId,
+      max.toString(),
+      "test1",
+      calldata
+    );
+    await sent.wait(1);
+    let project = await this.miningEco.projects(projectId);
+    let projectTemplate = ProjectTemplate.attach(project.addr);
+    let pt = projectTemplate.connect(pm);
+    expect(await projectTemplate.status()).to.equal(15);
+    await mineBlocks(1);
+    await expect(committee.connect(other).vote(1, true)).to.be.revertedWith(
+      "MiningCommittee: only committee member"
+    );
+  });
+
+  it("double vote", async function () {
+    const [
+      admin,
+      platformManager,
+      pm,
+      other,
+      cmt1,
+      cmt2,
+      cmt3,
+    ] = await ethers.getSigners();
+    const blockNumber = await getBlockNumber();
+    const projectId = "0x" + cryptoRandomString({ length: 64 });
+    const ProjectTemplate = await ethers.getContractFactory(
+      "TestProjectTemplate"
+    );
+    const Committee = await ethers.getContractFactory("MiningCommittee");
+    const committee = await Committee.deploy();
+    await committee.update_member(cmt1.address, 1);
+    await committee.update_member(cmt2.address, 1);
+    await committee.update_member(cmt3.address, 1);
+    await this.miningEco
+      .connect(platformManager)
+      .set_new_committee(committee.address, true);
+    await committee.update_supervised(this.miningEco.address, true);
+
+    const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
+    const max = D18.mul(new BN(1000000));
+    const min = max.mul(new BN(8)).div(new BN(10));
+    const auditWindow = 50;
+    const profitRate = 1000;
+    const raiseStart = blockNumber + auditWindow + 10;
+    const raiseEnd = blockNumber + auditWindow + 20;
+    const phases = [
+      [blockNumber + auditWindow + 50, blockNumber + auditWindow + 51, 80],
+      [blockNumber + auditWindow + 60, blockNumber + auditWindow + 70, 20],
+    ];
+    const repayDeadline = blockNumber + auditWindow + 1000;
+    const replanGrants = [pm.address];
+    const calldata = ProjectTemplate.interface.encodeFunctionData(
+      initializeFrgmt,
+      [
+        pm.address,
+        raiseStart,
+        raiseEnd,
+        min.toString(),
+        max.toString(),
+        repayDeadline,
+        profitRate,
+        phases,
+        replanGrants,
+        0,
+      ]
+    );
+    await this.dada
+      .connect(pm)
+      .approve(this.miningEco.address, this.balancePM.toString());
+    sent = await this.miningEco.new_project(
+      0,
+      projectId,
+      max.toString(),
+      "test1",
+      calldata
+    );
+    await sent.wait(1);
+    let project = await this.miningEco.projects(projectId);
+    let projectTemplate = ProjectTemplate.attach(project.addr);
+    let pt = projectTemplate.connect(pm);
+    expect(await projectTemplate.status()).to.equal(15);
+    await mineBlocks(1);
+    await committee.connect(cmt1).vote(1, true);
+    await expect(committee.connect(cmt1).vote(1, true)).to.be.revertedWith(
+      "MiningCommittee: voter already voted"
+    );
   });
 });
