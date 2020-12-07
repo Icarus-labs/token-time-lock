@@ -301,7 +301,7 @@ describe("ProjectTemplate lifetime changes", function () {
     expect((await this.usdt.balanceOf(pt.address)).toString()).to.equal(
       max.toString()
     );
-    expect(await projectTemplate.status()).to.equal(2);
+    expect(await projectTemplate.status()).to.equal(6);
 
     await mineBlocks(10);
     await pt.heartbeat();
@@ -385,7 +385,7 @@ describe("ProjectTemplate lifetime changes", function () {
     expect((await this.usdt.balanceOf(pt.address)).toString()).to.equal(
       max.toString()
     );
-    expect(await projectTemplate.status()).to.equal(2);
+    expect(await projectTemplate.status()).to.equal(6);
 
     await mineBlocks(20);
     await this.miningEco.pay_insurance(projectId);
@@ -476,7 +476,7 @@ describe("ProjectTemplate lifetime changes", function () {
     expect((await this.usdt.balanceOf(pt.address)).toString()).to.equal(
       max.toString()
     );
-    expect(await projectTemplate.status()).to.equal(2);
+    expect(await projectTemplate.status()).to.equal(6);
 
     await mineBlocks(10);
     await this.miningEco.pay_insurance(projectId);

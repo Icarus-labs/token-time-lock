@@ -701,6 +701,7 @@ contract ProjectTemplate is BaseProjectTemplate {
         actual_raised = actual_raised.add(amount);
         if (actual_raised >= min_amount && status == ProjectStatus.Raising) {
             status = ProjectStatus.Succeeded;
+            emit ProjectSucceeded(id);
         }
     }
 
