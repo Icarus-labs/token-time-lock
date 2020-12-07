@@ -11,6 +11,10 @@ const DADA_TOTAL_SUPPLY = new BN("10000000000000000000000000");
 const D18 = new BN("1000000000000000000");
 const USDT_TOTAL = new BN("1000000000000000000000000000000000000000000");
 
+const overrides = {
+  gasPrice: ethers.utils.parseUnits("1.0", "gwei"),
+};
+
 async function main() {
   // Hardhat always runs the compile task when running scripts with its command
   // line interface.
@@ -26,45 +30,58 @@ async function main() {
     "DaDa Token",
     "DADA",
     DADA_TOTAL_SUPPLY.toString(),
-    DADA_TOTAL_SUPPLY.toString()
+    DADA_TOTAL_SUPPLY.toString(),
+    overrides
   );
   console.log("DADA deployed to:", dada.address);
   const usdt = await StakingToken.deploy(
     "USDT",
     "USDT",
     USDT_TOTAL.toString(),
-    USDT_TOTAL.toString()
+    USDT_TOTAL.toString(),
+    overrides
   );
   console.log("USDT deployed to:", usdt.address);
   const MiningEco = await ethers.getContractFactory("MiningEco");
-  const miningEco = await MiningEco.deploy();
+  const miningEco = await MiningEco.deploy(overrides);
   await miningEco.deployed();
   console.log("MiningEco deployed to:", miningEco.address);
 
   const Proxy = await ethers.getContractFactory("MiningEcoProxy");
-  const proxy = await Proxy.deploy(miningEco.address, owner.address, []);
+  const proxy = await Proxy.deploy(
+    miningEco.address,
+    owner.address,
+    [],
+    overrides
+  );
   console.log("MiningEcoProxy deployed to:", proxy.address);
 
   const ProjectFactory = await ethers.getContractFactory("ProjectFactory");
   const projectFactory = await ProjectFactory.deploy(
     proxy.address,
-    usdt.address
+    usdt.address,
+    overrides
   );
   console.log("Template deployed to:", projectFactory.address);
 
   const platform = MiningEco.attach(proxy.address).connect(platformManager);
-  await platform.initialize(dada.address, usdt.address, owner.address);
+  await platform.initialize(
+    dada.address,
+    usdt.address,
+    owner.address,
+    overrides
+  );
 
-  await platform.set_template(0, projectFactory.address);
+  await platform.set_template(0, projectFactory.address, overrides);
 
   const dada_balance = new BN(5000000).mul(D18);
-  await dada.mint(dada_balance.toString());
+  await dada.mint(dada_balance.toString(), overrides);
   // await dada.transfer(
   //   "0x4072Eb9f4985998d161b2424988e470e64c75f26",
   //   dada_balance.toString()
   // );
   const usdt_balance = USDT_TOTAL.div(new BN(100));
-  await usdt.mint(usdt_balance.toString());
+  await usdt.mint(usdt_balance.toString(), overrides);
   // await usdt.transfer(
   //   "0x4072Eb9f4985998d161b2424988e470e64c75f26",
   //   usdt_balance.toString()

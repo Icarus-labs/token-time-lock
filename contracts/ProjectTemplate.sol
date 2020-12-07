@@ -50,8 +50,7 @@ contract ProjectTemplate is BaseProjectTemplate {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    uint256 public BLOCKS_PER_DAY = 6500;
-
+    uint256 public constant BLOCKS_PER_DAY = 6500;
     uint256 public constant REPLAN_NOTICE = 1;
     uint256 public constant REPLAN_VOTE_WINDOW = 3;
     uint256 public constant PHASE_KEEPALIVE = 3;
@@ -123,10 +122,6 @@ contract ProjectTemplate is BaseProjectTemplate {
         status = ProjectStatus.Created;
         current_phase = -1;
         USDT_address = IERC20(_usdt);
-    }
-
-    function set_blocks_per_day(uint256 blocks) public onlyOwner {
-        BLOCKS_PER_DAY = blocks;
     }
 
     function initialize(

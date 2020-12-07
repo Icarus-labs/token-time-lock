@@ -109,6 +109,7 @@ contract MiningEco is HasConstantSlots {
     event ProjectLiquidate(bytes32 projectid, address investor, uint256 amount);
     event ProjectRefund(bytes32 projectid, address investor, uint256 amount);
     event ProjectRepay(bytes32 projectid, address investor, uint256 amount);
+    event ProjectFeeTransfered(uint256 amount, address who);
 
     function initialize(
         address token,
@@ -355,6 +356,14 @@ contract MiningEco is HasConstantSlots {
                 );
             return token_amount;
         }
+    }
+
+    function transfer_fee(uint256 amount, address to_account)
+        public
+        isCommittee
+    {
+        IERC20(platform_token).safeTransfer(to_account, amount);
+        emit ProjectFeeTransfered(amount, to_account);
     }
 
     function _invest(address project_address, uint256 amount) internal {
