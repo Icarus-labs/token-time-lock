@@ -374,7 +374,8 @@ contract TestProjectTemplate is BaseProjectTemplate {
         uint256 total_percent_new;
         if (status == ProjectStatus.Rolling) {
             require(
-                uint256(current_phase) + 1 < phases.length &&
+                current_phase >= 0 &&
+                    uint256(current_phase) + 1 < phases.length &&
                     phases[uint256(current_phase)].closed &&
                     phases[uint256(current_phase)].result &&
                     block.number < phases[uint256(current_phase + 1)].start,
@@ -688,7 +689,8 @@ contract TestProjectTemplate is BaseProjectTemplate {
     {
         heartbeat();
         require(
-            status == ProjectStatus.Raising,
+            status == ProjectStatus.Raising ||
+                status == ProjectStatus.Succeeded,
             "ProjectTemplate: not raising"
         );
         require(max_amount > totalSupply, "ProjectTemplate: reach max amount");
@@ -697,6 +699,9 @@ contract TestProjectTemplate is BaseProjectTemplate {
         }
         _mint(account, amount);
         actual_raised = actual_raised.add(amount);
+        if (actual_raised >= min_amount && status == ProjectStatus.Raising) {
+            status = ProjectStatus.Succeeded;
+        }
     }
 
     function platform_refund(address account)

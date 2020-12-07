@@ -30,4 +30,6 @@ interface IBaseProjectTemplate {
     function actual_raised() external view returns (uint256);
 
     function status() external view returns (ProjectStatus);
+
+    function actual_project_status() external view returns (ProjectStatus);
 }
