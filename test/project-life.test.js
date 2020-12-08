@@ -240,7 +240,7 @@ describe("ProjectTemplate lifetime changes", function () {
     expect(await projectTemplate.status()).to.equal(17);
   });
 
-  it("first phase auto release", async function () {
+  it("repay amount & first phase auto release", async function () {
     const [admin, platformManager, pm, other] = await ethers.getSigners();
     const blockNumber = await getBlockNumber();
     const projectId = "0x" + cryptoRandomString({ length: 64 });
@@ -302,10 +302,19 @@ describe("ProjectTemplate lifetime changes", function () {
       max.toString()
     );
     expect(await projectTemplate.status()).to.equal(6);
-
     await mineBlocks(10);
     await pt.heartbeat();
     expect(await projectTemplate.status()).to.equal(6);
+
+    const interest = new BN(950)
+      .mul(new BN(1000))
+      .mul(max)
+      .div(new BN(10000))
+      .div(new BN(365).mul(new BN(10)));
+
+    expect((await pt.promised_repay()).toString()).to.equal(
+      interest.add(max).toString()
+    );
 
     await this.miningEco.pay_insurance(projectId);
     await mineBlocks(30);

@@ -482,9 +482,15 @@ contract TestProjectTemplate is BaseProjectTemplate {
 
     function _heartbeat_succeeded() internal returns (bool) {
         if (block.number >= raise_end && promised_repay == 0) {
-            promised_repay = actual_raised.add(
-                actual_raised.mul(profit_rate).div(10000)
-            );
+            uint256 money_utilize_blocks = repay_deadline - phases[0].start;
+            uint256 year = 365 * BLOCKS_PER_DAY;
+            uint256 interest =
+                actual_raised
+                    .mul(profit_rate)
+                    .mul(money_utilize_blocks)
+                    .div(10000)
+                    .div(year);
+            promised_repay = actual_raised.add(interest);
         }
         if (block.number > insurance_deadline) {
             status = ProjectStatus.Refunding;
