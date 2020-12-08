@@ -4,8 +4,12 @@ pragma solidity >=0.4.22 <0.8.0;
 
 import "@openzeppelin/contracts/math/SafeMath.sol";
 
+interface IDecimals {
+    function decimals() external view returns (uint256);
+}
+
 struct Feed {
-    int256 price;
+    uint256 price;
     uint256 timestamp;
 }
 
@@ -15,7 +19,7 @@ contract MiningEcoPriceFeed {
     uint256 public constant decimals = 8;
 
     mapping(address => bool) feeds;
-    mapping(address => Feed) data;
+    mapping(address => Feed) public data;
 
     modifier onlyFeed() {
         require(feeds[msg.sender] == true, "MiningEcoPriceFeed: only feed");
@@ -28,7 +32,7 @@ contract MiningEcoPriceFeed {
         }
     }
 
-    function feed(address token, int256 _data) external onlyFeed {
+    function feed(address token, uint256 _data) external onlyFeed {
         data[token] = Feed({price: _data, timestamp: block.timestamp});
     }
 
@@ -41,9 +45,10 @@ contract MiningEcoPriceFeed {
             data[token].price > 0,
             "MiningEcoPriceFeed: unexpected neg price"
         );
-        uint256 dec = 10**decimals;
+        uint256 token_decimals = IDecimals(token).decimals();
+        uint256 usdt_decimals = decimals;
         return (
-            amount.mul(dec).div(uint256(data[token].price)),
+            amount.mul(10**token_decimals).div(data[token].price),
             data[token].timestamp
         );
     }

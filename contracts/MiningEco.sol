@@ -10,6 +10,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+// import "@openzeppelin/contracts/proxy/TransparentUpgradeableProxy.sol";
+
 import "./HasConstantSlots.sol";
 import "./ProjectStatus.sol";
 
@@ -231,12 +233,12 @@ contract MiningEco is HasConstantSlots {
         emit ProjectRepay(project_id, msg.sender, amt);
     }
 
+    // before project fail, investor can call 'refund' to get back their investment
+    // what so ever left
     function refund(bytes32 project_id) external projectIdExists(project_id) {
         address project_address = projects[project_id].addr;
         uint256 amt =
-            IBaseProjectTemplate(project_address).platform_refund(
-                project_address
-            );
+            IBaseProjectTemplate(project_address).platform_refund(msg.sender);
         _deduct_total_deposit(amt);
         emit ProjectRefund(project_id, msg.sender, amt);
     }

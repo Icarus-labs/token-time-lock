@@ -42,6 +42,9 @@ async function main() {
     overrides
   );
   console.log("USDT deployed to:", usdt.address);
+  const PriceFeed = await ethers.getContractFactory("MiningEcoPriceFeed");
+  const priceFeed = await PriceFeed.deploy([owner.address], overrides);
+  await priceFeed.feed(dada.address, 4500000); // $0.045
   const MiningEco = await ethers.getContractFactory("MiningEco");
   const miningEco = await MiningEco.deploy(overrides);
   await miningEco.deployed();
@@ -71,8 +74,13 @@ async function main() {
     owner.address,
     overrides
   );
-
+  console.log("platform initialized");
   await platform.set_template(0, projectFactory.address, overrides);
+  await platform.set_price_feed(priceFeed.address, overrides);
+  console.log(
+    "MiningEco Price Feed is set to 0.045 USDT, at address ",
+    priceFeed.address
+  );
 
   const dada_balance = new BN(5000000).mul(D18);
   await dada.mint(dada_balance.toString(), overrides);

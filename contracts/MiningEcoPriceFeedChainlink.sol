@@ -5,10 +5,16 @@ pragma solidity >=0.4.22 <0.8.0;
 import "@chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 
+interface IDecimals {
+    function decimals() external view returns (uint256);
+}
+
 contract MiningEcoPriceFeedChainlink {
     using SafeMath for uint256;
 
     AggregatorV3Interface internal priceFeed;
+
+    uint256 public constant decimals = 8;
 
     /**
      * Network: Kovan
@@ -37,7 +43,8 @@ contract MiningEcoPriceFeedChainlink {
             price >= 0,
             "MiningEcoPriceFeedChainlink: unexpected neg price"
         );
-        uint256 dec = 10**priceFeed.decimals();
-        return (amount.mul(dec).div(uint256(price)), timeStamp);
+        uint256 token_decimals = IDecimals(token).decimals();
+        uint256 usdt_decimals = decimals;
+        return (amount.mul(10**token_decimals).div(uint256(price)), timeStamp);
     }
 }
