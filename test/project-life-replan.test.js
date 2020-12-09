@@ -458,10 +458,14 @@ describe("ProjectTemplate replan situations", function () {
     // await mineBlocks(70);
     // await pt.heartbeat();
     expect(await pt.status()).to.equal(7);
-    // moving forward 2 phases directly
-    await mineBlocks(70);
+
+    await mineBlocks(40);
     await pt.heartbeat();
-    // console.log(`current block: ${await getBlockNumber()}`);
+    expect((await this.usdt.balanceOf(pt.address)).toString()).to.equal(
+      max.div(new BN(10)).toString()
+    );
+    await mineBlocks(20);
+    await pt.heartbeat();
     expect(await pt.status()).to.equal(12);
   });
 
