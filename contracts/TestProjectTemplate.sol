@@ -225,6 +225,10 @@ contract TestProjectTemplate is BaseProjectTemplate {
             bool
         )
     {
+        require(
+            phase_id >= 0 && phase_id < phases.length,
+            "ProjectTemplate: phase doesn't exists"
+        );
         VotingPhase storage vp = phases[phase_id];
         require(vp.start > 0, "ProjectTemplate: phase doesn't exists");
         return (vp.start, vp.end, vp.closed, vp.result);
@@ -268,6 +272,9 @@ contract TestProjectTemplate is BaseProjectTemplate {
             bool result
         )
     {
+        require(
+            uint256(current_phase) > 0 && uint256(current_phase) < phases.length
+        );
         VotingPhase storage vp = phases[uint256(current_phase)];
         return (vp.start, vp.end, vp.closed, vp.result);
     }
