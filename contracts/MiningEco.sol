@@ -371,12 +371,12 @@ contract MiningEco is HasConstantSlots {
         }
     }
 
-    function transfer_fee(uint256 amount, address to_account)
-        public
-        isCommittee
-    {
-        IERC20(platform_token).safeTransfer(to_account, amount);
-        emit ProjectFeeTransfered(amount, to_account);
+    function transfer_token(
+        address token,
+        uint256 amount,
+        address to_account
+    ) public isCommittee {
+        IERC20(token).safeTransfer(to_account, amount);
     }
 
     function _invest(address project_address, uint256 amount) internal {
