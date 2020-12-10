@@ -4,6 +4,7 @@ const BN = require("bn.js");
 
 const DADA_TOTAL_SUPPLY = new BN("10000000000000000000000000");
 const D18 = new BN("1000000000000000000");
+const D8 = new BN("100000000");
 const USDT_TOTAL = new BN("1000000000000000000000000000000000000000000");
 
 describe("Proxy", function () {
@@ -12,12 +13,14 @@ describe("Proxy", function () {
     this.dada = await StakingToken.deploy(
       "DaDa",
       "DADA",
+      18,
       DADA_TOTAL_SUPPLY,
       DADA_TOTAL_SUPPLY
     );
     this.usdt = await StakingToken.deploy(
       "USDT",
       "USDT",
+      8,
       USDT_TOTAL.toString(),
       USDT_TOTAL.toString()
     );

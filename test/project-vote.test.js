@@ -5,6 +5,7 @@ const { mineBlocks, getBlockNumber } = require("./helpers.js");
 
 const DADA_TOTAL_SUPPLY = new BN("10000000000000000000000000");
 const D18 = new BN("1000000000000000000");
+const D8 = new BN("10000000");
 const USDT_TOTAL = new BN("1000000000000000000000000000000000000000000");
 
 describe("ProjectTemplate illegal votes", function () {
@@ -13,12 +14,14 @@ describe("ProjectTemplate illegal votes", function () {
     this.dada = await StakingToken.deploy(
       "DaDa Token",
       "DADA",
+      18,
       DADA_TOTAL_SUPPLY.toString(),
       DADA_TOTAL_SUPPLY.toString()
     );
     this.usdt = await StakingToken.deploy(
       "USDT",
       "USDT",
+      8,
       USDT_TOTAL.toString(),
       USDT_TOTAL.toString()
     );
@@ -65,6 +68,9 @@ describe("ProjectTemplate illegal votes", function () {
     this.balancePM = new BN(5000000).mul(D18);
     await this.dada.mint(this.balancePM.toString());
     await this.dada.transfer(pm.address, this.balancePM.toString());
+    this.balancePMusdt = new BN(5000000).mul(D8);
+    await this.usdt.mint(this.balancePM.toString());
+    await this.usdt.transfer(pm.address, this.balancePMusdt.toString());
 
     await this.usdt.mint(USDT_TOTAL.div(new BN(100)).toString());
     await this.usdt.transfer(
@@ -107,7 +113,7 @@ describe("ProjectTemplate illegal votes", function () {
       "TestProjectTemplate"
     );
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
-    const max = D18.mul(new BN(1000000));
+    const max = D8.mul(new BN(1000000));
     const min = max.mul(new BN(8)).div(new BN(10));
     const profitRate = 1000;
     const raiseStart = blockNumber + auditWindow + 10;
@@ -136,6 +142,9 @@ describe("ProjectTemplate illegal votes", function () {
     await this.dada
       .connect(pm)
       .approve(miningEcoPM.address, this.balancePM.toString());
+    await this.usdt
+      .connect(pm)
+      .approve(miningEcoPM.address, this.balancePMusdt.toString());
     sent = await miningEcoPM.new_project(
       0,
       projectId,

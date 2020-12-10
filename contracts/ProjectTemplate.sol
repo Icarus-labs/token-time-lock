@@ -859,7 +859,11 @@ contract ProjectTemplate is BaseProjectTemplate {
         require(!vp.closed, "ProjectTemplate: phase is closed");
         VotingReceipt storage receipt = vp.votes.receipts[voter];
         require(receipt.hasVoted == false, "ProjectTemplate: account voted");
-        uint256 votes = getPriorVotes(voter, vp.start);
+        require(
+            block.number >= vp.start,
+            "ProjectTemplate: vote not start yet"
+        );
+        uint256 votes = getPriorVotes(voter, vp.start - 1);
         require(votes > 0, "ProjectTemplate: no votes");
         if (support) {
             vp.votes.for_votes = vp.votes.for_votes.add(votes);
@@ -876,8 +880,8 @@ contract ProjectTemplate is BaseProjectTemplate {
     function _cast_replan_vote(address voter, bool support) internal {
         VotingReceipt storage receipt = replan_votes.votes.receipts[voter];
         require(receipt.hasVoted == false, "ProjectTemplate: account voted");
-
-        uint256 votes = getPriorVotes(voter, replan_votes.checkpoint);
+        require(block.number >= replan_votes.checkpoint);
+        uint256 votes = getPriorVotes(voter, replan_votes.checkpoint - 1);
         require(votes > 0, "ProjectTemplate: no votes");
 
         if (support) {

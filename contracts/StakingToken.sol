@@ -71,6 +71,7 @@ contract StakingToken is Context, IERC20, ReentrancyGuard {
     constructor(
         string memory name,
         string memory symbol,
+        uint8 decimals,
         uint256 softcap,
         uint256 cap
     ) public {
@@ -78,7 +79,7 @@ contract StakingToken is Context, IERC20, ReentrancyGuard {
         _owner = _msgSender();
         _name = name;
         _symbol = symbol;
-        _decimals = 18;
+        _decimals = decimals;
         _softcap = softcap;
         _cap = cap;
     }

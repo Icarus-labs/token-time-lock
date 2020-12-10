@@ -258,7 +258,7 @@ contract MiningEco is HasConstantSlots {
         uniqueProjectId(project_id)
     {
         uint256 fee = max_amount.mul(fee_rate).div(10000);
-        IERC20(platform_token).safeTransferFrom(msg.sender, address(this), fee);
+        USDT_address.safeTransferFrom(msg.sender, address(this), fee);
         require(
             template_gallery[template_id] != address(0),
             "MiningEco: unknown template"
@@ -360,7 +360,7 @@ contract MiningEco is HasConstantSlots {
     {
         if (price_feed == address(0)) {
             // 0.045$
-            return amount.mul(1000).div(45);
+            return amount.mul(10**18).div(10**8).mul(1000).div(45);
         } else {
             (uint256 token_amount, uint256 ts) =
                 IPriceFeed(price_feed).from_usdt_to_token(

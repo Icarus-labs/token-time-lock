@@ -5,6 +5,7 @@ const { mineBlocks, getBlockNumber } = require("./helpers.js");
 
 const DADA_TOTAL_SUPPLY = new BN("10000000000000000000000000");
 const D18 = new BN("1000000000000000000");
+const D8 = new BN("100000000");
 const USDT_TOTAL = new BN("1000000000000000000000000000000000000000000");
 
 describe("all kinds of price feeds", function () {
@@ -13,12 +14,14 @@ describe("all kinds of price feeds", function () {
     this.dada = await StakingToken.deploy(
       "DaDa Token",
       "DADA",
+      18,
       DADA_TOTAL_SUPPLY.toString(),
       DADA_TOTAL_SUPPLY.toString()
     );
     this.usdt = await StakingToken.deploy(
       "USDT",
       "USDT",
+      8,
       USDT_TOTAL.toString(),
       USDT_TOTAL.toString()
     );
@@ -87,10 +90,7 @@ describe("all kinds of price feeds", function () {
     const token_amount = await this.miningEco.usdt_to_platform_token(
       usdt_1.toString()
     );
-    const expected = new BN(1)
-      .mul(new BN("1000000000000000000"))
-      .mul(new BN("100000000"))
-      .div(new BN("4500000"));
+    const expected = new BN(1).mul(D18).mul(D8).div(new BN("4500000"));
     expect(token_amount.toString()).to.equal(expected.toString());
   });
 });
