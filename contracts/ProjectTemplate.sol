@@ -829,20 +829,21 @@ contract ProjectTemplate is BaseProjectTemplate {
 
     // owner can claim all phases that before current phase
     function claim() public onlyOwner {
-        for (uint256 i = 0; i <= uint256(current_phase); i++) {
-            VotingPhase storage vp = phases[i];
-            require(vp.closed && vp.result, "ProjectTemplate: phase is wrong");
-            if (vp.claimed) {
-                continue;
-            } else {
-                vp.claimed = true;
-                vp.processed = true;
-                USDT_address.safeTransfer(
-                    fund_receiver,
-                    actual_raised.mul(vp.percent).div(100)
-                );
-            }
-        }
+        heartbeat();
+        // for (uint256 i = 0; i <= uint256(current_phase); i++) {
+        //     VotingPhase storage vp = phases[i];
+        //     require(vp.closed && vp.result, "ProjectTemplate: phase is wrong");
+        //     if (vp.claimed) {
+        //         continue;
+        //     } else {
+        //         vp.claimed = true;
+        //         vp.processed = true;
+        //         USDT_address.safeTransfer(
+        //             fund_receiver,
+        //             actual_raised.mul(vp.percent).div(100)
+        //         );
+        //     }
+        // }
     }
 
     function _cast_vote(
