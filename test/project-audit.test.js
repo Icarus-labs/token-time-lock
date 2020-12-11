@@ -78,7 +78,7 @@ describe("Project audit by committee", function () {
     this.miningEco = this.miningEco.connect(pm);
   });
 
-  it("audit succeed", async function () {
+  it("audit succeeded", async function () {
     const [
       admin,
       platformManager,
@@ -94,14 +94,14 @@ describe("Project audit by committee", function () {
       "TestProjectTemplate"
     );
     const Committee = await ethers.getContractFactory("MiningCommittee");
-    const committee = await Committee.deploy();
-    await committee.update_member(cmt1.address, 1);
-    await committee.update_member(cmt2.address, 1);
-    await committee.update_member(cmt3.address, 1);
+    const auditCommittee = await Committee.deploy();
+    await auditCommittee.update_member(cmt1.address, 1);
+    await auditCommittee.update_member(cmt2.address, 1);
+    await auditCommittee.update_member(cmt3.address, 1);
     await this.miningEco
       .connect(platformManager)
-      .set_new_committee(committee.address, true);
-    await committee.update_supervised(this.miningEco.address, true);
+      .set_audit_committee(auditCommittee.address, true);
+    await auditCommittee.update_supervised(this.miningEco.address, true);
 
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
     const max = D8.mul(new BN(1000000));
@@ -147,10 +147,10 @@ describe("Project audit by committee", function () {
     let pt = projectTemplate.connect(pm);
     expect(await projectTemplate.status()).to.equal(15);
     await mineBlocks(1);
-    await committee.connect(cmt1).vote(1, true);
+    await auditCommittee.connect(cmt1).vote(1, true);
     expect(await pt.status()).to.equal(15);
-    await committee.connect(cmt2).vote(1, false);
-    await committee.connect(cmt3).vote(1, true);
+    await auditCommittee.connect(cmt2).vote(1, false);
+    await auditCommittee.connect(cmt3).vote(1, true);
     expect(await pt.status()).to.equal(17);
   });
 
@@ -170,14 +170,14 @@ describe("Project audit by committee", function () {
       "TestProjectTemplate"
     );
     const Committee = await ethers.getContractFactory("MiningCommittee");
-    const committee = await Committee.deploy();
-    await committee.update_member(cmt1.address, 1);
-    await committee.update_member(cmt2.address, 1);
-    await committee.update_member(cmt3.address, 1);
+    const auditCommittee = await Committee.deploy();
+    await auditCommittee.update_member(cmt1.address, 1);
+    await auditCommittee.update_member(cmt2.address, 1);
+    await auditCommittee.update_member(cmt3.address, 1);
     await this.miningEco
       .connect(platformManager)
-      .set_new_committee(committee.address, true);
-    await committee.update_supervised(this.miningEco.address, true);
+      .set_audit_committee(auditCommittee.address, true);
+    await auditCommittee.update_supervised(this.miningEco.address, true);
 
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
     const max = D8.mul(new BN(1000000));
@@ -223,9 +223,9 @@ describe("Project audit by committee", function () {
     let pt = projectTemplate.connect(pm);
     expect(await projectTemplate.status()).to.equal(15);
     await mineBlocks(1);
-    await expect(committee.connect(other).vote(1, true)).to.be.revertedWith(
-      "MiningCommittee: only committee member"
-    );
+    await expect(
+      auditCommittee.connect(other).vote(1, true)
+    ).to.be.revertedWith("MiningCommittee: only committee member");
   });
 
   it("double vote", async function () {
@@ -244,14 +244,14 @@ describe("Project audit by committee", function () {
       "TestProjectTemplate"
     );
     const Committee = await ethers.getContractFactory("MiningCommittee");
-    const committee = await Committee.deploy();
-    await committee.update_member(cmt1.address, 1);
-    await committee.update_member(cmt2.address, 1);
-    await committee.update_member(cmt3.address, 1);
+    const auditCommittee = await Committee.deploy();
+    await auditCommittee.update_member(cmt1.address, 1);
+    await auditCommittee.update_member(cmt2.address, 1);
+    await auditCommittee.update_member(cmt3.address, 1);
     await this.miningEco
       .connect(platformManager)
-      .set_new_committee(committee.address, true);
-    await committee.update_supervised(this.miningEco.address, true);
+      .set_audit_committee(auditCommittee.address, true);
+    await auditCommittee.update_supervised(this.miningEco.address, true);
 
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
     const max = D8.mul(new BN(1000000));
@@ -297,8 +297,8 @@ describe("Project audit by committee", function () {
     let pt = projectTemplate.connect(pm);
     expect(await projectTemplate.status()).to.equal(15);
     await mineBlocks(1);
-    await committee.connect(cmt1).vote(1, true);
-    await expect(committee.connect(cmt1).vote(1, true)).to.be.revertedWith(
+    await auditCommittee.connect(cmt1).vote(1, true);
+    await expect(auditCommittee.connect(cmt1).vote(1, true)).to.be.revertedWith(
       "MiningCommittee: voter already voted"
     );
   });

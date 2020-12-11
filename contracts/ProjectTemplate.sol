@@ -81,6 +81,7 @@ contract ProjectTemplate is BaseProjectTemplate {
 
     event ProjectRaising(bytes32 project_id);
     event ProjectFailed(bytes32 project_id);
+    event ProjectAudited(bytes32 project_id);
     event ProjectSucceeded(bytes32 project_id);
     event ProjectRefunding(bytes32 project_id);
     event ProjectInsuranceFailure(bytes32 project_id);
@@ -688,6 +689,7 @@ contract ProjectTemplate is BaseProjectTemplate {
         );
         if (pass) {
             status = ProjectStatus.Audited;
+            emit ProjectAudited(id);
         } else {
             status = ProjectStatus.Failed;
             emit ProjectFailed(id);

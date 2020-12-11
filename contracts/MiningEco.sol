@@ -40,7 +40,8 @@ contract MiningEco is HasConstantSlots {
     address public price_feed;
     uint256 public total_raised;
     uint256 public total_deposit;
-    bool public supervised_by_committee;
+    bool public project_audit_by_committee;
+    address public audit_committee;
 
     mapping(bytes32 => Project) public projects;
     mapping(address => bytes32) public projects_by_address;
@@ -87,6 +88,14 @@ contract MiningEco is HasConstantSlots {
         _;
     }
 
+    modifier isAuditCommittee() {
+        require(
+            msg.sender == audit_committee,
+            "MiningEco: only audit committee"
+        );
+        _;
+    }
+
     modifier uniqueProjectId(bytes32 id) {
         require(
             projects[id].addr == address(0),
@@ -95,15 +104,8 @@ contract MiningEco is HasConstantSlots {
         _;
     }
 
-    modifier onlyProjects() {
-        require(
-            projects_by_address[msg.sender] != bytes32(""),
-            "MiningEco: only valid projects"
-        );
-        _;
-    }
-
     event NewCommittee(address);
+    event NewAuditCommittee(address);
     event ProjectAudit(bytes32 projectid, bool y);
     event ProjectCreated(uint256 template_id, bytes32 project_id, address who);
     event ProjectInsurancePaid(bytes32 projectid, address who, uint256 amount);
@@ -132,7 +134,7 @@ contract MiningEco is HasConstantSlots {
         USDT_address = IERC20(usdt);
         fee_rate = 50;
         insurance_rate = 1000;
-
+        audit_committee = msg.sender;
         slot = _COMMITTEE_SLOT;
         address _sender = msg.sender;
         // solhint-disable-next-line no-inline-assembly
@@ -171,17 +173,22 @@ contract MiningEco is HasConstantSlots {
         }
     }
 
-    function set_new_committee(address _committee, bool isContract)
-        public
-        isCommittee
-    {
+    function set_new_committee(address _committee) public isCommittee {
         bytes32 slot = _COMMITTEE_SLOT;
         // solhint-disable-next-line no-inline-assembly
         assembly {
             sstore(slot, _committee)
         }
         emit NewCommittee(_committee);
-        supervised_by_committee = isContract;
+    }
+
+    function set_audit_committee(address _committee, bool _need_vote)
+        public
+        isCommittee
+    {
+        audit_committee = _committee;
+        project_audit_by_committee = _need_vote;
+        emit NewAuditCommittee(_committee);
     }
 
     function committee_address() public view returns (address committee) {
@@ -194,7 +201,7 @@ contract MiningEco is HasConstantSlots {
 
     function audit_project(bytes32 project_id, bool yn)
         public
-        isCommittee
+        isAuditCommittee
         projectIdExists(project_id)
     {
         IBaseProjectTemplate(projects[project_id].addr).platform_audit(yn);
@@ -276,7 +283,7 @@ contract MiningEco is HasConstantSlots {
         Ownable(project_addr).transferOwnership(msg.sender);
 
         emit ProjectCreated(template_id, project_id, msg.sender);
-        if (supervised_by_committee) {
+        if (project_audit_by_committee) {
             address[] memory targets = new address[](1);
             targets[0] = address(this);
             uint256[] memory values = new uint256[](1);
@@ -289,7 +296,7 @@ contract MiningEco is HasConstantSlots {
                 true
             );
             uint256 proposal_id =
-                ICommittee(committee_address()).propose(
+                ICommittee(audit_committee).propose(
                     targets,
                     values,
                     sigs,
