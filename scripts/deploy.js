@@ -7,9 +7,10 @@ const hre = require("hardhat");
 const { ethers } = hre;
 const BN = require("bn.js");
 
-const DADA_TOTAL_SUPPLY = new BN("10000000000000000000000000");
 const D18 = new BN("1000000000000000000");
-const USDT_TOTAL = new BN("1000000000000000000000000000000000000000000");
+const D8 = new BN("100000000");
+const DADA_TOTAL_SUPPLY = D18.mul(new BN("10000000000000000000000"));
+const USDT_TOTAL = D8.mul(new BN("10000000000000000000"));
 
 const overrides = {
   gasPrice: ethers.utils.parseUnits("1.0", "gwei"),
@@ -24,11 +25,12 @@ async function main() {
   // await hre.run('compile');
 
   // We get the contract to deploy
-  const [owner, platformManager, dara] = await ethers.getSigners();
+  const [owner, platformManager] = await ethers.getSigners();
   const StakingToken = await ethers.getContractFactory("StakingToken");
   const dada = await StakingToken.deploy(
     "DaDa Token",
     "DADA",
+    18,
     DADA_TOTAL_SUPPLY.toString(),
     DADA_TOTAL_SUPPLY.toString(),
     overrides
@@ -37,6 +39,7 @@ async function main() {
   const usdt = await StakingToken.deploy(
     "USDT",
     "USDT",
+    8,
     USDT_TOTAL.toString(),
     USDT_TOTAL.toString(),
     overrides
@@ -95,9 +98,7 @@ async function main() {
   //   usdt_balance.toString()
   // );
 
-  console.log(
-    `initial balances have been given to 0x92E73408801e713f8371f8A8c31a40130ae61a40`
-  );
+  console.log(`initial balances have been given to ${owner.address}`);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
