@@ -81,6 +81,7 @@ contract TestProjectTemplate is BaseProjectTemplate {
 
     event ProjectRaising(bytes32 project_id);
     event ProjectFailed(bytes32 project_id);
+    event ProjectAudited(bytes32 project_id);
     event ProjectSucceeded(bytes32 project_id);
     event ProjectRefunding(bytes32 project_id);
     event ProjectInsuranceFailure(bytes32 project_id);
@@ -222,7 +223,8 @@ contract TestProjectTemplate is BaseProjectTemplate {
             uint256,
             uint256,
             bool,
-            bool
+            bool,
+            uint256
         )
     {
         require(
@@ -231,7 +233,26 @@ contract TestProjectTemplate is BaseProjectTemplate {
         );
         VotingPhase storage vp = phases[phase_id];
         require(vp.start > 0, "ProjectTemplate: phase doesn't exists");
-        return (vp.start, vp.end, vp.closed, vp.result);
+
+        return (vp.start, vp.end, vp.closed, vp.result, vp.votes.against_votes);
+    }
+
+    function get_replan_vote_info()
+        public
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256,
+            uint256
+        )
+    {
+        return (
+            replan_votes.checkpoint,
+            replan_votes.deadline,
+            replan_votes.votes.for_votes,
+            replan_votes.votes.against_votes
+        );
     }
 
     function voted(
@@ -688,6 +709,7 @@ contract TestProjectTemplate is BaseProjectTemplate {
         );
         if (pass) {
             status = ProjectStatus.Audited;
+            emit ProjectAudited(id);
         } else {
             status = ProjectStatus.Failed;
             emit ProjectFailed(id);

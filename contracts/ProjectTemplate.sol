@@ -223,7 +223,8 @@ contract ProjectTemplate is BaseProjectTemplate {
             uint256,
             uint256,
             bool,
-            bool
+            bool,
+            uint256
         )
     {
         require(
@@ -232,7 +233,26 @@ contract ProjectTemplate is BaseProjectTemplate {
         );
         VotingPhase storage vp = phases[phase_id];
         require(vp.start > 0, "ProjectTemplate: phase doesn't exists");
-        return (vp.start, vp.end, vp.closed, vp.result);
+
+        return (vp.start, vp.end, vp.closed, vp.result, vp.votes.against_votes);
+    }
+
+    function get_replan_vote_info()
+        public
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256,
+            uint256
+        )
+    {
+        return (
+            replan_votes.checkpoint,
+            replan_votes.deadline,
+            replan_votes.votes.for_votes,
+            replan_votes.votes.against_votes
+        );
     }
 
     function voted(
