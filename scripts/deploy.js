@@ -12,6 +12,7 @@ const D8 = new BN("100000000");
 const DADA_TOTAL_SUPPLY = D18.mul(new BN("10000000000000000000000"));
 const USDT_TOTAL = D8.mul(new BN("10000000000000000000"));
 
+const fs = require("fs");
 const overrides = {
   gasPrice: ethers.utils.parseUnits("1.0", "gwei"),
 };
@@ -99,6 +100,15 @@ async function main() {
   // );
 
   console.log(`initial balances have been given to ${owner.address}`);
+
+  let addrs = {
+    dada: dada.address,
+    usdt: usdt.address,
+    miningeco: proxy.address,
+  };
+  fs.writeFileSync("./scripts/address.json", JSON.stringify(addrs));
+
+  console.log("addresses have been written down into ./scripts/address.json");
 }
 
 // We recommend this pattern to be able to use async/await everywhere

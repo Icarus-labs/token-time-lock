@@ -6,6 +6,7 @@
 const hre = require("hardhat");
 const { ethers } = hre;
 const BN = require("bn.js");
+const fs = require("fs");
 
 const D18 = new BN("1000000000000000000");
 const D8 = new BN("100000000");
@@ -99,6 +100,15 @@ async function main() {
   // );
 
   console.log(`initial balances have been given to ${owner.address}`);
+
+  let addrs = {
+    dada: dada.address,
+    usdt: usdt.address,
+    miningeco: proxy.address,
+  };
+  fs.writeFileSync("./scripts/address.json", JSON.stringify(addrs));
+
+  console.log("addresses have been written down into ./scripts/address.json");
 }
 
 // We recommend this pattern to be able to use async/await everywhere
