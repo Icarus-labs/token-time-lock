@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity >=0.6.0 <0.7.0;
 
 // import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -11,11 +10,6 @@ import "@openzeppelin/contracts/GSN/Context.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-/**
-   !!! This StakingToken stays only for the sake of testing !!!
-
-   reference: https://github.com/y2labs-0sh/dada-staking
-   */
 contract StakingToken is Context, IERC20, ReentrancyGuard {
     using Address for address;
     using SafeMath for uint256;
@@ -71,7 +65,6 @@ contract StakingToken is Context, IERC20, ReentrancyGuard {
     constructor(
         string memory name,
         string memory symbol,
-        uint8 decimals,
         uint256 softcap,
         uint256 cap
     ) public {
@@ -79,7 +72,7 @@ contract StakingToken is Context, IERC20, ReentrancyGuard {
         _owner = _msgSender();
         _name = name;
         _symbol = symbol;
-        _decimals = decimals;
+        _decimals = 18;
         _softcap = softcap;
         _cap = cap;
     }
@@ -520,10 +513,7 @@ contract StakingToken is Context, IERC20, ReentrancyGuard {
         view
         returns (uint256)
     {
-        require(
-            blockNumber < block.number,
-            "StakingContract: not yet determined"
-        );
+        require(blockNumber < block.number, "StakingToken: not yet determined");
 
         uint256 nCheckpoints = numCheckpoints[account];
         if (nCheckpoints == 0) {
@@ -587,6 +577,31 @@ contract StakingToken is Context, IERC20, ReentrancyGuard {
         _transferToReserved(address(this), to_whom, amount);
     }
 
+    function can_claim() public view isAlive returns (uint256) {
+        if (_reserved_balances[_msgSender()] == 0) {
+            return 0;
+        }
+        if (llocks[_msgSender()].remains_in_lock == 0) {
+            return 0;
+        }
+
+        LinearLockWithFrozenHell storage llwf = llocks[_msgSender()];
+
+        uint256 begins = _releaseBegins(_msgSender());
+        if (block.timestamp < begins) {
+            return 0;
+        }
+
+        uint256 released_span = block.timestamp - begins;
+        if (llwf.latest_claim > begins) {
+            released_span = block.timestamp - llwf.latest_claim;
+        }
+        uint256 released_amount =
+            llwf.total_amount.div(llwf.lock_span).mul(released_span);
+
+        return released_amount;
+    }
+
     function claim() public nonReentrant isAlive {
         require(
             _reserved_balances[_msgSender()] > 0,
@@ -616,7 +631,7 @@ contract StakingToken is Context, IERC20, ReentrancyGuard {
             released_amount = llwf.remains_in_lock;
             llwf.remains_in_lock = 0;
         } else {
-            llwf.remains_in_lock = llwf.remains_in_lock.div(released_amount);
+            llwf.remains_in_lock = llwf.remains_in_lock.sub(released_amount);
         }
 
         llwf.latest_claim = block.timestamp;
@@ -659,7 +674,7 @@ contract StakingToken is Context, IERC20, ReentrancyGuard {
         _afterTokenTransfer(sender, recipient, amount);
     }
 
-    function _releaseBegins(address who) internal returns (uint256) {
+    function _releaseBegins(address who) internal view returns (uint256) {
         LinearLockWithFrozenHell storage llwf = llocks[who];
         uint256 begins = 0;
         if (llwf.created_timestamp > epoch) {

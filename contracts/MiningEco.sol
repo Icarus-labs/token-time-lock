@@ -14,12 +14,14 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "./HasConstantSlots.sol";
 import "./ProjectStatus.sol";
+import "./MiningEcoBonus.sol";
 
 import "./interfaces/IBaseProjectTemplate.sol";
 import "./interfaces/IBaseProjectFactory.sol";
 import "./interfaces/IPriceFeed.sol";
 import "./interfaces/ICommittee.sol";
 import "./interfaces/IProjectAudit.sol";
+import "./interfaces/IBonus.sol";
 
 struct Project {
     address payable addr;
@@ -42,6 +44,7 @@ contract MiningEco is HasConstantSlots {
     uint256 public total_deposit;
     bool public project_audit_by_committee;
     address public audit_committee;
+    address public bonus;
 
     mapping(bytes32 => Project) public projects;
     mapping(address => bytes32) public projects_by_address;
@@ -107,7 +110,12 @@ contract MiningEco is HasConstantSlots {
     event NewCommittee(address);
     event NewAuditCommittee(address);
     event ProjectAudit(bytes32 projectid, bool y);
-    event ProjectCreated(uint256 template_id, bytes32 project_id, address who);
+    event ProjectCreated(
+        uint256 template_id,
+        bytes32 project_id,
+        address who,
+        address project
+    );
     event ProjectInsurancePaid(bytes32 projectid, address who, uint256 amount);
     event ProjectInvest(bytes32 projectid, address investor, uint256 amount);
     event ProjectLiquidate(bytes32 projectid, address investor, uint256 amount);
@@ -173,6 +181,10 @@ contract MiningEco is HasConstantSlots {
         }
     }
 
+    function set_bonus(address b) public isCommittee {
+        bonus = b;
+    }
+
     function set_new_committee(address _committee) public isCommittee {
         bytes32 slot = _COMMITTEE_SLOT;
         // solhint-disable-next-line no-inline-assembly
@@ -213,10 +225,14 @@ contract MiningEco is HasConstantSlots {
         projectIdExists(project_id)
     {
         address project_address = projects[project_id].addr;
-        _invest(project_address, amount);
-        total_raised = total_raised.add(amount);
-        total_deposit = total_deposit.add(amount);
-        emit ProjectInvest(project_id, msg.sender, amount);
+        uint256 amt = _invest(project_address, amount);
+        total_raised = total_raised.add(amt);
+        total_deposit = total_deposit.add(amt);
+        emit ProjectInvest(project_id, msg.sender, amt);
+
+        if (bonus != address(0)) {
+            IBonus(bonus).incoming_investment(msg.sender, amt);
+        }
     }
 
     function liquidate(bytes32 project_id)
@@ -282,7 +298,7 @@ contract MiningEco is HasConstantSlots {
         }
         Ownable(project_addr).transferOwnership(msg.sender);
 
-        emit ProjectCreated(template_id, project_id, msg.sender);
+        emit ProjectCreated(template_id, project_id, msg.sender, project_addr);
         if (project_audit_by_committee) {
             address[] memory targets = new address[](1);
             targets[0] = address(this);
@@ -386,7 +402,10 @@ contract MiningEco is HasConstantSlots {
         IERC20(token).safeTransfer(to_account, amount);
     }
 
-    function _invest(address project_address, uint256 amount) internal {
+    function _invest(address project_address, uint256 amount)
+        internal
+        returns (uint256)
+    {
         uint256 supply = IERC20(project_address).totalSupply();
         uint256 max = IBaseProjectTemplate(project_address).max_amount();
 
@@ -404,6 +423,8 @@ contract MiningEco is HasConstantSlots {
         );
         // lock investment in the project address
         USDT_address.safeTransfer(project_address, investment);
+
+        return investment;
     }
 
     function _append_new_project_to_user(address user, bytes32 pid) internal {
