@@ -9,9 +9,10 @@ import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "./ProjectStatus.sol";
+import "./interfaces/IBaseProjectTemplate.sol";
 
 interface Platform {
-    function status() external returns (ProjectStatus);
+    function projects(bytes32) external returns (address);
 }
 
 contract MiningEcoBonusBeta is Ownable {
@@ -49,7 +50,11 @@ contract MiningEcoBonusBeta is Ownable {
     }
 
     function claim_investment_bonus(bytes32 project_id) public {
-        require(Platform(platform).status() >= ProjectStatus.Succeeded, "");
+        require(
+            IBaseProjectTemplate(Platform(platform).projects(project_id))
+                .status() >= ProjectStatus.Succeeded,
+            ""
+        );
         uint256 invest = investments[project_id][msg.sender];
 
         require(total_investment[project_id] > 0);

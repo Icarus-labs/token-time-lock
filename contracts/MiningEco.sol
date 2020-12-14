@@ -231,7 +231,7 @@ contract MiningEco is HasConstantSlots {
         emit ProjectInvest(project_id, msg.sender, amt);
 
         if (bonus != address(0)) {
-            IBonus(bonus).incoming_investment(msg.sender, amt);
+            IBonus(bonus).incoming_investment(project_id, msg.sender, amt);
         }
     }
 
