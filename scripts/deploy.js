@@ -76,6 +76,7 @@ async function main() {
     dada.address,
     usdt.address,
     owner.address,
+    owner.address,
     overrides
   );
   console.log("platform initialized");
