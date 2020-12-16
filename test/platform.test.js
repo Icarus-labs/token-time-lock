@@ -34,7 +34,12 @@ describe("Proxy", function () {
     const miningEcoInitFragment = miningEco.interface.getFunction("initialize");
     const initializeCalldata = miningEco.interface.encodeFunctionData(
       miningEcoInitFragment,
-      [this.dada.address, this.usdt.address, platformManager.address]
+      [
+        this.dada.address,
+        this.usdt.address,
+        platformManager.address,
+        platformManager.address,
+      ]
     );
 
     expect(await miningEco.initialized.call()).equal(false);

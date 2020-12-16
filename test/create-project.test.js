@@ -32,7 +32,12 @@ describe("MiningEco create project", function () {
     const miningEcoInitFragment = miningEco.interface.getFunction("initialize");
     const initializeCalldata = miningEco.interface.encodeFunctionData(
       miningEcoInitFragment,
-      [this.dada.address, this.usdt.address, platformManager.address]
+      [
+        this.dada.address,
+        this.usdt.address,
+        platformManager.address,
+        platformManager.address,
+      ]
     );
 
     const Proxy = await ethers.getContractFactory("MiningEcoProxy");

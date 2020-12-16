@@ -14,7 +14,7 @@ contract MiningEcoPriceFeedChainlink {
 
     AggregatorV3Interface internal priceFeed;
 
-    uint256 public constant decimals = 8;
+    uint256 public constant decimals = 6;
 
     /**
      * Network: Kovan

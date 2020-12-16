@@ -5,7 +5,7 @@ const { mineBlocks, getBlockNumber } = require("./helpers.js");
 
 const DADA_TOTAL_SUPPLY = new BN("10000000000000000000000000");
 const D18 = new BN("1000000000000000000");
-const D8 = new BN("100000000");
+const D6 = new BN("1000000");
 const USDT_TOTAL = new BN("1000000000000000000000000000000000000000000");
 
 describe("ProjectTemplate replan situations", function () {
@@ -32,7 +32,12 @@ describe("ProjectTemplate replan situations", function () {
     const miningEcoInitFragment = miningEco.interface.getFunction("initialize");
     const initializeCalldata = miningEco.interface.encodeFunctionData(
       miningEcoInitFragment,
-      [this.dada.address, this.usdt.address, platformManager.address]
+      [
+        this.dada.address,
+        this.usdt.address,
+        platformManager.address,
+        platformManager.address,
+      ]
     );
 
     const Proxy = await ethers.getContractFactory("MiningEcoProxy");
@@ -61,7 +66,7 @@ describe("ProjectTemplate replan situations", function () {
     this.balancePM = new BN(5000000).mul(D18);
     await this.dada.mint(this.balancePM.toString());
     await this.dada.transfer(pm.address, this.balancePM.toString());
-    this.balancePMusdt = new BN(5000000).mul(D8);
+    this.balancePMusdt = new BN(5000000).mul(D6);
     await this.usdt.mint(this.balancePMusdt.toString());
     await this.usdt.transfer(pm.address, this.balancePMusdt.toString());
 
@@ -83,7 +88,7 @@ describe("ProjectTemplate replan situations", function () {
       "TestProjectTemplate"
     );
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
-    const max = D8.mul(new BN(1000000));
+    const max = D6.mul(new BN(1000000));
     const min = max.mul(new BN(8)).div(new BN(10));
     const auditWindow = 50;
     const profitRate = 1000;
@@ -169,7 +174,7 @@ describe("ProjectTemplate replan situations", function () {
       "TestProjectTemplate"
     );
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
-    const max = D8.mul(new BN(1000000));
+    const max = D6.mul(new BN(1000000));
     const min = max.mul(new BN(8)).div(new BN(10));
     const auditWindow = 50;
     const profitRate = 1000;
@@ -244,7 +249,7 @@ describe("ProjectTemplate replan situations", function () {
       "TestProjectTemplate"
     );
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
-    const max = D8.mul(new BN(1000000));
+    const max = D6.mul(new BN(1000000));
     const min = max.mul(new BN(8)).div(new BN(10));
     const profitRate = 1000;
     const auditWindow = 50;
@@ -312,7 +317,7 @@ describe("ProjectTemplate replan situations", function () {
     await miningEcoOther.liquidate(projectId);
     expect(
       (await this.usdt.balanceOf(other.address)).sub(pre_balance).toString()
-    ).to.equal(new BN(200000).mul(D8).toString());
+    ).to.equal(new BN(200000).mul(D6).toString());
     await pt.heartbeat();
     expect(await pt.status()).to.equal(5);
   });
@@ -326,7 +331,7 @@ describe("ProjectTemplate replan situations", function () {
       "TestProjectTemplate"
     );
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
-    const max = D8.mul(new BN(1000000));
+    const max = D6.mul(new BN(1000000));
     const min = max.mul(new BN(8)).div(new BN(10));
     const profitRate = 1000;
     const auditWindow = 50;
@@ -412,7 +417,7 @@ describe("ProjectTemplate replan situations", function () {
       "TestProjectTemplate"
     );
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
-    const max = D8.mul(new BN(1000000));
+    const max = D6.mul(new BN(1000000));
     const min = max.mul(new BN(8)).div(new BN(10));
     const profitRate = 1000;
     const auditWindow = 50;
@@ -503,7 +508,7 @@ describe("ProjectTemplate replan situations", function () {
       "TestProjectTemplate"
     );
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
-    const max = D8.mul(new BN(1000000));
+    const max = D6.mul(new BN(1000000));
     const min = max.mul(new BN(8)).div(new BN(10));
     const profitRate = 1000;
     const auditWindow = 50;

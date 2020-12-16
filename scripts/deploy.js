@@ -48,7 +48,7 @@ async function main() {
   console.log("USDT deployed to:", usdt.address);
   const PriceFeed = await ethers.getContractFactory("MiningEcoPriceFeed");
   const priceFeed = await PriceFeed.deploy([owner.address], overrides);
-  await priceFeed.feed(dada.address, 4500000); // $0.045
+  await priceFeed.feed(dada.address, 45000); // $0.045
   const MiningEco = await ethers.getContractFactory("MiningEco");
   const miningEco = await MiningEco.deploy(overrides);
   await miningEco.deployed();

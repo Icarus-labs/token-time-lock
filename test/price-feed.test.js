@@ -32,12 +32,17 @@ describe("all kinds of price feeds", function () {
 
     const PriceFeed = await ethers.getContractFactory("MiningEcoPriceFeed");
     const priceFeed = await PriceFeed.deploy([admin.address]);
-    await priceFeed.feed(this.dada.address, "4500000"); // $0.045
+    await priceFeed.feed(this.dada.address, "45000"); // $0.045
 
     const miningEcoInitFragment = miningEco.interface.getFunction("initialize");
     const initializeCalldata = miningEco.interface.encodeFunctionData(
       miningEcoInitFragment,
-      [this.dada.address, this.usdt.address, platformManager.address]
+      [
+        this.dada.address,
+        this.usdt.address,
+        platformManager.address,
+        platformManager.address,
+      ]
     );
 
     const Proxy = await ethers.getContractFactory("MiningEcoProxy");
@@ -90,7 +95,7 @@ describe("all kinds of price feeds", function () {
     const token_amount = await this.miningEco.usdt_to_platform_token(
       usdt_1.toString()
     );
-    const expected = new BN(1).mul(D18).mul(D8).div(new BN("4500000"));
+    const expected = new BN(1).mul(D18).mul(D8).div(new BN("45000"));
     expect(token_amount.toString()).to.equal(expected.toString());
   });
 });

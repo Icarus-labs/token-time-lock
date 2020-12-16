@@ -39,6 +39,7 @@ contract MiningEco is HasConstantSlots {
     uint256 public insurance_rate;
     address public platform_token;
     address payable public insurance_vault;
+    address payable public fee_vault;
     address public price_feed;
     uint256 public total_raised;
     uint256 public total_deposit;
@@ -126,7 +127,8 @@ contract MiningEco is HasConstantSlots {
     function initialize(
         address token,
         address usdt,
-        address payable vault
+        address payable _insurance_vault,
+        address payable _fee_vault
     ) public {
         require(!initialized, "MiningEco: already initialized");
         address adm;
@@ -138,7 +140,8 @@ contract MiningEco is HasConstantSlots {
         require(adm != address(0), "MiningEco: not from proxy");
 
         platform_token = token;
-        insurance_vault = vault;
+        insurance_vault = _insurance_vault;
+        fee_vault = _fee_vault;
         USDT_address = IERC20(usdt);
         fee_rate = 50;
         insurance_rate = 1000;
@@ -281,7 +284,7 @@ contract MiningEco is HasConstantSlots {
         uniqueProjectId(project_id)
     {
         uint256 fee = max_amount.mul(fee_rate).div(10000);
-        USDT_address.safeTransferFrom(msg.sender, address(this), fee);
+        USDT_address.safeTransferFrom(msg.sender, fee_vault, fee);
         require(
             template_gallery[template_id] != address(0),
             "MiningEco: unknown template"
@@ -383,7 +386,7 @@ contract MiningEco is HasConstantSlots {
     {
         if (price_feed == address(0)) {
             // 0.045$
-            return amount.mul(10**18).div(10**8).mul(1000).div(45);
+            return amount.mul(10**18).div(10**6).mul(1000).div(45);
         } else {
             (uint256 token_amount, uint256 ts) =
                 IPriceFeed(price_feed).from_usdt_to_token(

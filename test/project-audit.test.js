@@ -5,7 +5,7 @@ const { mineBlocks, getBlockNumber } = require("./helpers.js");
 
 const DADA_TOTAL_SUPPLY = new BN("10000000000000000000000000");
 const D18 = new BN("1000000000000000000");
-const D8 = new BN("100000000");
+const D6 = new BN("1000000");
 const USDT_TOTAL = new BN("1000000000000000000000000000000000000000000");
 
 describe("Project audit by committee", function () {
@@ -32,7 +32,12 @@ describe("Project audit by committee", function () {
     const miningEcoInitFragment = miningEco.interface.getFunction("initialize");
     const initializeCalldata = miningEco.interface.encodeFunctionData(
       miningEcoInitFragment,
-      [this.dada.address, this.usdt.address, platformManager.address]
+      [
+        this.dada.address,
+        this.usdt.address,
+        platformManager.address,
+        platformManager.address,
+      ]
     );
 
     const Proxy = await ethers.getContractFactory("MiningEcoProxy");
@@ -104,7 +109,7 @@ describe("Project audit by committee", function () {
     await auditCommittee.update_supervised(this.miningEco.address, true);
 
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
-    const max = D8.mul(new BN(1000000));
+    const max = D6.mul(new BN(1000000));
     const min = max.mul(new BN(8)).div(new BN(10));
     const auditWindow = 50;
     const profitRate = 1000;
@@ -180,7 +185,7 @@ describe("Project audit by committee", function () {
     await auditCommittee.update_supervised(this.miningEco.address, true);
 
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
-    const max = D8.mul(new BN(1000000));
+    const max = D6.mul(new BN(1000000));
     const min = max.mul(new BN(8)).div(new BN(10));
     const auditWindow = 50;
     const profitRate = 1000;
@@ -254,7 +259,7 @@ describe("Project audit by committee", function () {
     await auditCommittee.update_supervised(this.miningEco.address, true);
 
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
-    const max = D8.mul(new BN(1000000));
+    const max = D6.mul(new BN(1000000));
     const min = max.mul(new BN(8)).div(new BN(10));
     const auditWindow = 50;
     const profitRate = 1000;

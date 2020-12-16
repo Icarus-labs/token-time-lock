@@ -16,7 +16,7 @@ struct Feed {
 contract MiningEcoPriceFeed {
     using SafeMath for uint256;
 
-    uint256 public constant decimals = 8;
+    uint256 public constant decimals = 6;
 
     mapping(address => bool) feeds;
     mapping(address => Feed) public data;
