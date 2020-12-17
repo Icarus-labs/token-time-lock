@@ -409,24 +409,19 @@ contract MiningEco is HasConstantSlots {
         internal
         returns (uint256)
     {
-        uint256 supply = IERC20(project_address).totalSupply();
-        uint256 max = IBaseProjectTemplate(project_address).max_amount();
-
-        uint256 investment = amount;
-        if (max.sub(supply) < amount) {
-            investment = max.sub(supply);
-        }
-
         // hold the investment at our own disposal
-        USDT_address.safeTransferFrom(msg.sender, address(this), investment);
+        USDT_address.safeTransferFrom(msg.sender, address(this), amount);
         // mint project token to investor
-        IBaseProjectTemplate(project_address).platform_invest(
-            msg.sender,
-            investment
-        );
+        uint256 investment =
+            IBaseProjectTemplate(project_address).platform_invest(
+                msg.sender,
+                amount
+            );
         // lock investment in the project address
         USDT_address.safeTransfer(project_address, investment);
-
+        if (amount.sub(investment) > 0) {
+            USDT_address.safeTransfer(msg.sender, amount.sub(investment));
+        }
         return investment;
     }
 

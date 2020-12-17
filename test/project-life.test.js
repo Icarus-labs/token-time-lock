@@ -803,4 +803,126 @@ describe("ProjectTemplate lifetime changes", function () {
     await pt.heartbeat();
     expect(await pt.status()).to.equal(14);
   });
+
+  it("over investment", async function () {
+    const [
+      admin,
+      platformManager,
+      pm,
+      other1,
+      other2,
+      other3,
+    ] = await ethers.getSigners();
+
+    await this.usdt.mint(USDT_TOTAL.div(new BN(100)).toString());
+    await this.usdt.transfer(
+      other1.address,
+      USDT_TOTAL.div(new BN(100)).toString()
+    );
+    await this.usdt.mint(USDT_TOTAL.div(new BN(100)).toString());
+    await this.usdt.transfer(
+      other2.address,
+      USDT_TOTAL.div(new BN(100)).toString()
+    );
+    await this.usdt.mint(USDT_TOTAL.div(new BN(100)).toString());
+    await this.usdt.transfer(
+      other3.address,
+      USDT_TOTAL.div(new BN(100)).toString()
+    );
+
+    const blockNumber = await getBlockNumber();
+    const auditWindow = 50;
+    const miningEcoPM = this.miningEco.connect(pm);
+    const projectId = "0x" + cryptoRandomString({ length: 64 });
+    const ProjectTemplate = await ethers.getContractFactory(
+      "TestProjectTemplate"
+    );
+    const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
+    const max = D6.mul(new BN(1000000));
+    const min = max.mul(new BN(8)).div(new BN(10));
+    const profitRate = 1000;
+    const raiseStart = blockNumber + auditWindow + 10;
+    const raiseEnd = blockNumber + auditWindow + 30;
+    const phases = [
+      [blockNumber + auditWindow + 60, blockNumber + auditWindow + 61, 80],
+      [blockNumber + auditWindow + 70, blockNumber + auditWindow + 80, 20],
+    ];
+    const repayDeadline = blockNumber + auditWindow + 1000;
+    const replanGrants = [pm.address];
+    const calldata = ProjectTemplate.interface.encodeFunctionData(
+      initializeFrgmt,
+      [
+        pm.address,
+        raiseStart,
+        raiseEnd,
+        min.toString(),
+        max.toString(),
+        repayDeadline,
+        profitRate,
+        phases,
+        replanGrants,
+        0,
+      ]
+    );
+    await this.dada
+      .connect(pm)
+      .approve(miningEcoPM.address, this.balancePM.toString());
+    await this.usdt
+      .connect(pm)
+      .approve(miningEcoPM.address, this.balancePMusdt.toString());
+    sent = await miningEcoPM.new_project(
+      0,
+      projectId,
+      max.toString(),
+      "test1",
+      calldata
+    );
+    await sent.wait(1);
+
+    await this.miningEco
+      .connect(platformManager)
+      .audit_project(projectId, true);
+    await mineBlocks(auditWindow);
+
+    let project = await miningEcoPM.projects(projectId);
+    let projectTemplate = ProjectTemplate.attach(project.addr);
+    let pt = projectTemplate.connect(pm);
+    expect(await projectTemplate.status()).to.equal(17);
+    await mineBlocks(10);
+    await pt.heartbeat();
+    expect(await projectTemplate.status()).to.equal(2);
+    await this.usdt
+      .connect(other1)
+      .approve(this.miningEco.address, max.toString());
+    await this.miningEco
+      .connect(other1)
+      .invest(projectId, max.div(new BN(5)).toString());
+    await this.usdt
+      .connect(other2)
+      .approve(this.miningEco.address, max.toString());
+    await this.miningEco
+      .connect(other2)
+      .invest(projectId, max.div(new BN(5)).toString());
+    await this.usdt
+      .connect(other3)
+      .approve(this.miningEco.address, max.toString());
+    await this.miningEco.connect(other3).invest(projectId, max.toString());
+    expect((await this.usdt.balanceOf(other3.address)).toString()).to.equal(
+      USDT_TOTAL.div(new BN(100))
+        .sub(max.mul(new BN(3)).div(new BN(5)))
+        .toString()
+    );
+    await this.usdt
+      .connect(other3)
+      .approve(this.miningEco.address, max.toString());
+    await expect(
+      this.miningEco
+        .connect(other3)
+        .invest(projectId, max.mul(new BN(3)).div(new BN(5)).toString())
+    ).to.be.revertedWith("ProjectTemplate: reach max amount");
+
+    expect((await pt.balanceOf(other3.address)).toString()).to.equal(
+      max.mul(new BN(3)).div(new BN(5)).toString()
+    );
+  });
 });

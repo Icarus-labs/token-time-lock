@@ -13,7 +13,9 @@ interface IBaseProjectTemplate {
 
     function platform_audit(bool) external;
 
-    function platform_invest(address account, uint256 amount) external;
+    function platform_invest(address account, uint256 amount)
+        external
+        returns (uint256);
 
     function platform_liquidate(address account)
         external

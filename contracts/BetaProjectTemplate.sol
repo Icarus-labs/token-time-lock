@@ -99,10 +99,7 @@ contract BetaProjectTemplate is BaseProjectTemplate {
     event ReplanVoteCast(address voter, bool support, uint256 votes);
 
     modifier projectJustCreated() {
-        require(
-            status == ProjectStatus.Created,
-            "ProjectTemplate: status not created"
-        );
+        require(status == ProjectStatus.Created);
         _;
     }
 
@@ -123,6 +120,7 @@ contract BetaProjectTemplate is BaseProjectTemplate {
         status = ProjectStatus.Created;
         current_phase = -1;
         USDT_address = IERC20(_usdt);
+        decimals = 6;
     }
 
     function initialize(
@@ -721,6 +719,7 @@ contract BetaProjectTemplate is BaseProjectTemplate {
         public
         override
         platformRequired
+        returns (uint256)
     {
         heartbeat();
         require(
@@ -728,16 +727,23 @@ contract BetaProjectTemplate is BaseProjectTemplate {
                 status == ProjectStatus.Succeeded,
             "ProjectTemplate: not raising"
         );
-        require(max_amount > totalSupply, "ProjectTemplate: reach max amount");
-        if (max_amount < totalSupply + amount) {
-            amount = max_amount - totalSupply;
+        require(
+            max_amount > actual_raised,
+            "ProjectTemplate: reach max amount"
+        );
+        uint256 invest_amt = amount;
+        if (max_amount < actual_raised + amount) {
+            invest_amt = max_amount - actual_raised;
         }
-        _mint(account, amount);
-        actual_raised = actual_raised.add(amount);
+
+        _mint(account, invest_amt);
+
+        actual_raised = actual_raised.add(invest_amt);
         if (actual_raised >= min_amount && status == ProjectStatus.Raising) {
             status = ProjectStatus.Succeeded;
             emit ProjectSucceeded(id);
         }
+        return invest_amt;
     }
 
     function platform_refund(address account)
@@ -752,7 +758,7 @@ contract BetaProjectTemplate is BaseProjectTemplate {
             "ProjectTemplate: not in refunding"
         );
         uint256 amount = _balances[account];
-        require(amount > 0, "ProjectTemplate: no share");
+        require(amount > 0);
         USDT_address.safeTransfer(account, amount);
         _transfer(account, address(this), amount);
         return amount;
@@ -789,7 +795,7 @@ contract BetaProjectTemplate is BaseProjectTemplate {
             "ProjectTemplate: not in repaying"
         );
         uint256 amount = _balances[account];
-        require(amount > 0, "ProjectTemplate: no share");
+        require(amount > 0);
         uint256 profit_total = amount.mul(profit_rate).div(10000).add(amount);
         uint256 this_usdt_balance = USDT_address.balanceOf(address(this));
         require(this_usdt_balance > 0, "ProjectTemplate: no balance");
@@ -818,13 +824,10 @@ contract BetaProjectTemplate is BaseProjectTemplate {
 
     function vote_replan(bool support) public {
         heartbeat();
-        require(
-            status == ProjectStatus.ReplanVoting,
-            "ProjectTemplate: not in replan voting"
-        );
+        require(status == ProjectStatus.ReplanVoting);
         require(
             replan_votes.new_phases.length > 0,
-            "ProjectTemplate: new phase error"
+            "ProjectTemplate: no replan auth"
         );
         require(
             block.number >= replan_votes.checkpoint &&
@@ -1008,19 +1011,19 @@ contract BetaProjectTemplate is BaseProjectTemplate {
         return block.number + BLOCKS_PER_DAY * 3;
     }
 
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 amount
-    ) internal virtual override {
-        super._beforeTokenTransfer(from, to, amount);
-        if (from == address(0)) {
-            require(to == to);
-            // When minting tokens
-            uint256 newSupply = totalSupply.add(amount);
-            require(newSupply <= max_amount);
-        }
-    }
+    // function _beforeTokenTransfer(
+    //     address from,
+    //     address to,
+    //     uint256 amount
+    // ) internal virtual override {
+    //     super._beforeTokenTransfer(from, to, amount);
+    //     if (from == address(0)) {
+    //         require(to == to);
+    //         // When minting tokens
+    //         uint256 newSupply = totalSupply.add(amount);
+    //         require(newSupply <= max_amount);
+    //     }
+    // }
 
     function _locked_investment() internal view returns (uint256) {
         uint256 total = 0;
