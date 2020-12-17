@@ -50,10 +50,14 @@ contract MiningEcoBonusBeta is Ownable {
     }
 
     function claim_investment_bonus(bytes32 project_id) public {
-        require(
+        ProjectStatus ps =
             IBaseProjectTemplate(Platform(platform).projects(project_id))
-                .status() >= ProjectStatus.Succeeded,
-            ""
+                .status();
+        require(
+            ps > ProjectStatus.Succeeded &&
+                ps != ProjectStatus.Auditing &&
+                ps != ProjectStatus.Audited,
+            "MiningEcoBonus: project status error"
         );
         uint256 invest = investments[project_id][msg.sender];
 

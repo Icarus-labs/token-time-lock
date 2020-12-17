@@ -3,9 +3,9 @@ const { expect } = require("chai");
 const BN = require("bn.js");
 const { mineBlocks, getBlockNumber } = require("./helpers.js");
 
-const DADA_TOTAL_SUPPLY = new BN("10000000000000000000000000");
 const D18 = new BN("1000000000000000000");
-const D8 = new BN("100000000");
+const D6 = new BN("100000000");
+const DADA_TOTAL_SUPPLY = D18.mul(new BN("10000000000"));
 const USDT_TOTAL = new BN("1000000000000000000000000000000000000000000");
 
 describe("MiningEco create project", function () {
@@ -21,7 +21,7 @@ describe("MiningEco create project", function () {
     this.usdt = await StakingToken.deploy(
       "USDT",
       "USDT",
-      8,
+      6,
       USDT_TOTAL.toString(),
       USDT_TOTAL.toString()
     );
@@ -62,10 +62,10 @@ describe("MiningEco create project", function () {
     expect(await this.miningEco.initialized()).to.equal(true);
     this.miningEco.set_template(0, this.projectFactory.address);
 
-    this.balancePM = D18.mul(new BN(10000));
+    this.balancePM = D18.mul(new BN(1000000000));
     await this.dada.mint(this.balancePM.toString());
     await this.dada.transfer(pm.address, this.balancePM.toString());
-    this.balancePMusdt = D8.mul(new BN(10000));
+    this.balancePMusdt = D6.mul(new BN(100000));
     await this.usdt.mint(this.balancePMusdt.toString());
     await this.usdt.transfer(pm.address, this.balancePMusdt.toString());
     this.miningEco = this.miningEco.connect(pm);
@@ -79,8 +79,8 @@ describe("MiningEco create project", function () {
       "TestProjectTemplate"
     );
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
-    const max = D8.mul(new BN(1000000));
-    const min = D8.mul(new BN(800000));
+    const max = D6.mul(new BN(1000000));
+    const min = D6.mul(new BN(800000));
     const blockNumber = await getBlockNumber();
     const raiseStart = blockNumber + 10;
     const raiseEnd = blockNumber + 20;
@@ -124,8 +124,8 @@ describe("MiningEco create project", function () {
       "TestProjectTemplate"
     );
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
-    const max = D8.mul(new BN(1000000));
-    const min = D8.mul(new BN(800000));
+    const max = D6.mul(new BN(1000000));
+    const min = D6.mul(new BN(800000));
     const blockNumber = await getBlockNumber();
     const raiseStart = blockNumber + 10;
     const raiseEnd = blockNumber + 20;
@@ -169,8 +169,8 @@ describe("MiningEco create project", function () {
       "TestProjectTemplate"
     );
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
-    const max = D8.mul(new BN(1000000));
-    const min = D8.mul(new BN(800000));
+    const max = D6.mul(new BN(1000000));
+    const min = D6.mul(new BN(800000));
     const blockNumber = await getBlockNumber();
     const raiseStart = blockNumber + 10;
     const raiseEnd = blockNumber + 20;
@@ -217,8 +217,8 @@ describe("MiningEco create project", function () {
       "TestProjectTemplate"
     );
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
-    const max = D8.mul(new BN(1000000000));
-    const min = D8.mul(new BN(20000));
+    const max = D6.mul(new BN(1000000000));
+    const min = D6.mul(new BN(20000));
     const blockNumber = await getBlockNumber();
     const raiseStart = blockNumber + 10;
     const raiseEnd = blockNumber + 20;
@@ -266,8 +266,8 @@ describe("MiningEco create project", function () {
     );
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
     // pm dada balance is 10000
-    const max = D8.mul(new BN(2000000));
-    const min = D8.mul(new BN(20000));
+    const max = D6.mul(new BN(2000000));
+    const min = D6.mul(new BN(20000));
     const blockNumber = await getBlockNumber();
     const auditWindow = 50;
     const raiseStart = blockNumber + auditWindow + 10;
@@ -316,8 +316,8 @@ describe("MiningEco create project", function () {
       "TestProjectTemplate"
     );
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
-    const max = D8.mul(new BN(1000000));
-    const min = D8.mul(new BN(800000));
+    const max = D6.mul(new BN(1000000));
+    const min = D6.mul(new BN(800000));
     const blockNumber = await getBlockNumber();
     const raiseStart = blockNumber + 10;
     const raiseEnd = blockNumber + 20;
@@ -364,8 +364,8 @@ describe("MiningEco create project", function () {
       "TestProjectTemplate"
     );
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
-    const max = D8.mul(new BN(1000000));
-    const min = D8.mul(new BN(800000));
+    const max = D6.mul(new BN(1000000));
+    const min = D6.mul(new BN(800000));
     const blockNumber = await getBlockNumber();
     const raiseStart = blockNumber + 10;
     const raiseEnd = blockNumber + 20;
@@ -406,7 +406,7 @@ describe("MiningEco create project", function () {
     ).to.be.revertedWith("ProjectTemplate: phase boundaries across");
   });
 
-  it("create", async function () {
+  it("create && succeed && claim bonus", async function () {
     const [admin, platformManager, pm, other] = await ethers.getSigners();
     const Bonus = await ethers.getContractFactory("MiningEcoBonusBeta");
     const bonus = await Bonus.deploy(this.miningEco.address, this.dada.address);
@@ -418,7 +418,7 @@ describe("MiningEco create project", function () {
       "TestProjectTemplate"
     );
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
-    const max = D8.mul(new BN(1000000));
+    const max = D6.mul(new BN(1000000));
     const min = max.mul(new BN(8)).div(new BN(10));
     const profitRate = 1000;
     const raiseStart = blockNumber + auditWindow + 10;
@@ -444,7 +444,7 @@ describe("MiningEco create project", function () {
         0,
       ]
     );
-    const facai = new BN("88888000000000000000000");
+    const facai = D18.mul(new BN("88888"));
     await this.dada.connect(admin).mint(facai.toString());
     await this.dada.connect(admin).transfer(bonus.address, facai.toString());
     await this.dada
@@ -484,13 +484,14 @@ describe("MiningEco create project", function () {
     );
     expect(await projectTemplate.status()).to.equal(6);
 
+    await mineBlocks(20);
+    await this.miningEco.pay_insurance(projectId);
+
     await bonus.connect(other).claim_investment_bonus(projectId);
     expect((await this.dada.balanceOf(other.address)).toString()).to.equal(
       facai.toString()
     );
 
-    // await mineBlocks(20);
-    // await this.miningEco.pay_insurance(projectId);
     // expect(await projectTemplate.status()).to.equal(18);
     // await mineBlocks(30);
 
