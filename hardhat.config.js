@@ -26,6 +26,12 @@ module.exports = {
   defaultNetwork: "hardhat",
   networks: {
     hardhat: {},
+    mainnet: {
+      chainId: 1,
+      url: `https://mainnet.infura.io/v3/${infuraKey}`,
+      accounts: privateKeys,
+      timeout: 200000,
+    },
     ropsten: {
       chainId: 3,
       url: `https://ropsten.infura.io/v3/${infuraKey}`,
@@ -45,7 +51,7 @@ module.exports = {
       optimizer: {
         enabled: true,
         runs: 10,
-     },
+      },
     },
   },
   mocha: {

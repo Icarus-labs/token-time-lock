@@ -9,9 +9,9 @@ const BN = require("bn.js");
 const fs = require("fs");
 
 const D18 = new BN("1000000000000000000");
-const D8 = new BN("100000000");
+const D6 = new BN("1000000");
 const DADA_TOTAL_SUPPLY = D18.mul(new BN("10000000000000000000000"));
-const USDT_TOTAL = D8.mul(new BN("10000000000000000000"));
+const USDT_TOTAL = D6.mul(new BN("10000000000000000000"));
 
 const overrides = {
   gasPrice: ethers.utils.parseUnits("1.0", "gwei"),
@@ -40,7 +40,7 @@ async function main() {
   const usdt = await StakingToken.deploy(
     "USDT",
     "USDT",
-    8,
+    6,
     USDT_TOTAL.toString(),
     USDT_TOTAL.toString(),
     overrides
@@ -48,7 +48,7 @@ async function main() {
   console.log("USDT deployed to:", usdt.address);
   const PriceFeed = await ethers.getContractFactory("MiningEcoPriceFeed");
   const priceFeed = await PriceFeed.deploy([owner.address], overrides);
-  await priceFeed.feed(dada.address, 4500000); // $0.045
+  await priceFeed.feed(dada.address, 45000); // $0.045
   const MiningEco = await ethers.getContractFactory("MiningEco");
   const miningEco = await MiningEco.deploy(overrides);
   await miningEco.deployed();
