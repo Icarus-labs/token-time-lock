@@ -16,7 +16,13 @@ abstract contract BaseProjectTemplate is Ownable, ProjectToken {
     address public platform;
     ProjectStatus public status;
     uint256 public max_amount;
+    uint256 public min_amount;
+    uint256 public actual_raised;
     uint256 public insurance_deadline;
+    address public fund_receiver;
+    uint256 public audit_end;
+    uint256 public raise_start;
+    uint256 public raise_end;
 
     modifier platformRequired() {
         require(
@@ -28,7 +34,22 @@ abstract contract BaseProjectTemplate is Ownable, ProjectToken {
 
     event VoteCast(address who, uint256 phase_id, bool support, uint256 votes);
 
-    constructor(bytes32 projectid, address _platform) public {
+    event ProjectRaising(bytes32 project_id);
+    event ProjectFailed(bytes32 project_id);
+    event ProjectAudited(bytes32 project_id);
+    event ProjectSucceeded(bytes32 project_id);
+    event ProjectRefunding(bytes32 project_id);
+    event ProjectInsuranceFailure(bytes32 project_id);
+    event ProjectRolling(bytes32 project_id);
+    event ProjectLiquidating(bytes32 project_id);
+    event ProjectRepaying(bytes32 project_id);
+    event ProjectFinished(bytes32 project_id);
+
+    constructor(
+        bytes32 projectid,
+        address _platform,
+        string memory _symbol
+    ) public ProjectToken(_symbol) {
         id = projectid;
         platform = _platform;
     }
@@ -41,7 +62,49 @@ abstract contract BaseProjectTemplate is Ownable, ProjectToken {
         status = ProjectStatus.InsurancePaid;
     }
 
+    function _audit(bool pass) internal {
+        require(
+            status == ProjectStatus.Auditing && block.number < audit_end,
+            "BaseProjectTemplate: no audit window"
+        );
+        if (pass) {
+            status = ProjectStatus.Audited;
+            emit ProjectAudited(id);
+        } else {
+            status = ProjectStatus.Failed;
+            emit ProjectFailed(id);
+        }
+    }
+
     function platform_audit(bool pass) external virtual;
+
+    function _invest(address account, uint256 amount)
+        internal
+        returns (uint256)
+    {
+        require(
+            status == ProjectStatus.Raising ||
+                status == ProjectStatus.Succeeded,
+            "BaseProjectTemplate: not raising"
+        );
+        require(
+            max_amount > actual_raised,
+            "BaseProjectTemplate: reach max amount"
+        );
+        uint256 invest_amt = amount;
+        if (max_amount < actual_raised + amount) {
+            invest_amt = max_amount - actual_raised;
+        }
+
+        _mint(account, invest_amt);
+
+        actual_raised = actual_raised.add(invest_amt);
+        if (actual_raised >= min_amount && status == ProjectStatus.Raising) {
+            status = ProjectStatus.Succeeded;
+            emit ProjectSucceeded(id);
+        }
+        return invest_amt;
+    }
 
     function platform_invest(address account, uint256 amount)
         external

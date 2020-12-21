@@ -61,17 +61,11 @@ contract ProjectTemplate is BaseProjectTemplate {
 
     uint256 public constant FAILED_PHASE_MAX = 2;
 
-    uint256 public actual_raised;
-    uint256 public min_amount;
-    uint256 public audit_end;
-    uint256 public raise_start;
-    uint256 public raise_end;
     int256 public current_phase;
     uint256 public phase_replan_deadline;
     uint256 public repay_deadline;
     uint256 public profit_rate;
     uint256 public promised_repay;
-    address public fund_receiver;
     uint256 public failed_phase_count;
     uint256 public failed_replan_count;
 
@@ -79,21 +73,12 @@ contract ProjectTemplate is BaseProjectTemplate {
     ReplanVotes replan_votes;
     mapping(address => bool) who_can_replan;
 
-    event ProjectRaising(bytes32 project_id);
-    event ProjectFailed(bytes32 project_id);
-    event ProjectAudited(bytes32 project_id);
-    event ProjectSucceeded(bytes32 project_id);
-    event ProjectRefunding(bytes32 project_id);
-    event ProjectInsuranceFailure(bytes32 project_id);
-    event ProjectRolling(bytes32 project_id);
     event ProjectPhaseChange(bytes32 project_id, uint256 phaseid);
     event ProjectPhaseFail(bytes32 project_id, uint256 phaseid);
     event ProjectAllPhasesDone(bytes32 project_id);
-    event ProjectLiquidating(bytes32 project_id);
     event ProjectReplanVoting(bytes32 project_id);
     event ProjectReplanFailed(bytes32 project_id);
     event ProjectRepaying(bytes32 project_id);
-    event ProjectFinished(bytes32 project_id);
     event ProjectReplanNotice(bytes32 project_id);
     event ProjectReplaned(bytes32 project_id);
     event ReplanVoteCast(address voter, bool support, uint256 votes);
@@ -116,7 +101,7 @@ contract ProjectTemplate is BaseProjectTemplate {
         string memory _symbol,
         address _platform,
         address _usdt
-    ) public BaseProjectTemplate(_pid, _platform) ProjectToken(_symbol) {
+    ) public BaseProjectTemplate(_pid, _platform, _symbol) {
         status = ProjectStatus.Created;
         current_phase = -1;
         USDT_address = IERC20(_usdt);
