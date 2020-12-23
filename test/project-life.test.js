@@ -21,7 +21,7 @@ describe("ProjectTemplate lifetime changes", function () {
     this.usdt = await StakingToken.deploy(
       "USDT",
       "USDT",
-      8,
+      6,
       USDT_TOTAL.toString(),
       USDT_TOTAL.toString()
     );
@@ -82,6 +82,7 @@ describe("ProjectTemplate lifetime changes", function () {
       USDT_TOTAL.div(new BN(100)).toString()
     );
     this.miningEco = this.miningEco.connect(pm);
+    await mineBlocks(1);
   });
 
   it("miss audit window", async function () {
@@ -102,6 +103,7 @@ describe("ProjectTemplate lifetime changes", function () {
       [blockNumber + auditWindow + 50, blockNumber + auditWindow + 51, 80],
       [blockNumber + auditWindow + 60, blockNumber + auditWindow + 70, 20],
     ];
+
     const repayDeadline = blockNumber + auditWindow + 1000;
     const replanGrants = [pm.address];
     const calldata = ProjectTemplate.interface.encodeFunctionData(
@@ -134,12 +136,14 @@ describe("ProjectTemplate lifetime changes", function () {
       calldata
     );
     await sent.wait(1);
+    await mineBlocks(1);
     let project = await this.miningEco.projects(projectId);
     let projectTemplate = ProjectTemplate.attach(project.addr);
     let pt = projectTemplate.connect(pm);
     expect(await projectTemplate.status()).to.equal(15);
     await mineBlocks(100);
     await projectTemplate.heartbeat();
+    await mineBlocks(1);
     expect(await projectTemplate.status()).to.equal(5);
   });
 

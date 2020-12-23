@@ -21,7 +21,7 @@ describe("ProjectTemplate replan situations", function () {
     this.usdt = await StakingToken.deploy(
       "USDT",
       "USDT",
-      8,
+      6,
       USDT_TOTAL.toString(),
       USDT_TOTAL.toString()
     );
