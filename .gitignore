@@ -6,3 +6,4 @@ artifacts
 
 *.secret.json
 scripts/address.json
+flatten/

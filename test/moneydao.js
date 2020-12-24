@@ -154,7 +154,6 @@ describe("MoneyDao", function () {
     expect(await moneydao.proposers(pm.address)).to.equal(true);
     await mineBlocks(2);
     // auth checked
-    console.log((await moneydao.balanceOf(other.address)).toString());
     let moneydao_other = moneydao.connect(other);
     await moneydao_other.vote(true);
   });

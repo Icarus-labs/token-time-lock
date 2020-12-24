@@ -1,11 +1,9 @@
 const BN = require("bn.js");
+const { ethers } = require("hardhat");
 
 async function getBlockNumber() {
   let provider = new ethers.providers.JsonRpcProvider();
-  const number = new BN(
-    (await provider.send("eth_blockNumber")).replace("0x", ""),
-    16
-  );
+  const number = ethers.BigNumber.from(await provider.getBlockNumber());
   return number.toNumber();
 }
 
