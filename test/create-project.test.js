@@ -100,7 +100,7 @@ describe("MiningEco create project", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
     await this.usdt
@@ -145,7 +145,7 @@ describe("MiningEco create project", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
     await this.usdt
@@ -193,7 +193,7 @@ describe("MiningEco create project", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
     await this.usdt
@@ -241,7 +241,7 @@ describe("MiningEco create project", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
     await this.usdt
@@ -291,7 +291,7 @@ describe("MiningEco create project", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
     await this.usdt
@@ -340,7 +340,7 @@ describe("MiningEco create project", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
     await this.usdt
@@ -389,7 +389,7 @@ describe("MiningEco create project", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
     await this.usdt
@@ -441,7 +441,7 @@ describe("MiningEco create project", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        100,
       ]
     );
     const facai = D18.mul(new BN("88888"));
@@ -463,7 +463,7 @@ describe("MiningEco create project", function () {
     await sent.wait(1);
     await this.miningEco
       .connect(platformManager)
-      .audit_project(projectId, true);
+      .audit_project(projectId, true, 100);
     await mineBlocks(auditWindow);
     let project = await this.miningEco.projects(projectId);
     let projectTemplate = ProjectTemplate.attach(project.addr);
@@ -484,8 +484,19 @@ describe("MiningEco create project", function () {
     );
     expect(await projectTemplate.status()).to.equal(6);
 
+    const pm_balance = await this.dada.balanceOf(pm.address);
     await mineBlocks(20);
     await this.miningEco.pay_insurance(projectId);
+
+    expect(
+      (
+        await this.miningEco.usdt_to_platform_token(
+          max.div(new BN(100)).toString()
+        )
+      ).toString()
+    ).to.equal(
+      pm_balance.sub(await this.dada.balanceOf(pm.address)).toString()
+    );
 
     await bonus.connect(other).claim_investment_bonus(projectId);
     expect((await this.dada.balanceOf(other.address)).toString()).to.equal(
@@ -497,5 +508,98 @@ describe("MiningEco create project", function () {
 
     // await pt.heartbeat();
     // expect(await projectTemplate.status()).to.equal(7); // Rolling
+  });
+
+  it("change insurance rate by audit", async function () {
+    const [admin, platformManager, pm, other] = await ethers.getSigners();
+    const Bonus = await ethers.getContractFactory("MiningEcoBonusBeta");
+    const bonus = await Bonus.deploy(this.miningEco.address, this.dada.address);
+    this.miningEco.connect(platformManager).set_bonus(bonus.address);
+    const blockNumber = await getBlockNumber();
+    const auditWindow = 50;
+    const projectId = "0x" + cryptoRandomString({ length: 64 });
+    const ProjectTemplate = await ethers.getContractFactory(
+      "TestProjectTemplate"
+    );
+    const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
+    const max = D6.mul(new BN(1000000));
+    const min = max.mul(new BN(8)).div(new BN(10));
+    const profitRate = 1000;
+    const raiseStart = blockNumber + auditWindow + 10;
+    const raiseEnd = blockNumber + auditWindow + 20;
+    const phases = [
+      [blockNumber + auditWindow + 50, blockNumber + auditWindow + 51, 80],
+      [blockNumber + auditWindow + 60, blockNumber + auditWindow + 70, 20],
+    ];
+    const repayDeadline = blockNumber + auditWindow + 1000;
+    const replanGrants = [pm.address];
+    const calldata = ProjectTemplate.interface.encodeFunctionData(
+      initializeFrgmt,
+      [
+        pm.address,
+        raiseStart,
+        raiseEnd,
+        min.toString(),
+        max.toString(),
+        repayDeadline,
+        profitRate,
+        phases,
+        replanGrants,
+        100,
+      ]
+    );
+    const facai = D18.mul(new BN("88888"));
+    await this.dada.connect(admin).mint(facai.toString());
+    await this.dada.connect(admin).transfer(bonus.address, facai.toString());
+    await this.dada
+      .connect(pm)
+      .approve(this.miningEco.address, this.balancePM.toString());
+    await this.usdt
+      .connect(pm)
+      .approve(this.miningEco.address, this.balancePMusdt.toString());
+    sent = await this.miningEco.new_project(
+      0,
+      projectId,
+      max.toString(),
+      "test1",
+      calldata
+    );
+    await sent.wait(1);
+    await this.miningEco
+      .connect(platformManager)
+      .audit_project(projectId, true, 1000);
+    await mineBlocks(auditWindow);
+    let project = await this.miningEco.projects(projectId);
+    let projectTemplate = ProjectTemplate.attach(project.addr);
+    let pt = projectTemplate.connect(pm);
+    expect(await projectTemplate.status()).to.equal(17);
+    await mineBlocks(7);
+    await pt.heartbeat();
+    const miningEcoOther = this.miningEco.connect(other);
+    await this.usdt.mint(max.mul(new BN(2)).toString());
+    await this.usdt.transfer(other.address, max.mul(new BN(2)).toString());
+    await this.usdt
+      .connect(other)
+      .approve(miningEcoOther.address, max.toString());
+    await miningEcoOther.invest(projectId, max.toString());
+
+    expect((await this.usdt.balanceOf(pt.address)).toString()).to.equal(
+      max.toString()
+    );
+    expect(await projectTemplate.status()).to.equal(6);
+
+    const pm_balance = await this.dada.balanceOf(pm.address);
+    await mineBlocks(20);
+    await this.miningEco.pay_insurance(projectId);
+
+    expect(
+      (
+        await this.miningEco.usdt_to_platform_token(
+          max.div(new BN(10)).toString()
+        )
+      ).toString()
+    ).to.equal(
+      pm_balance.sub(await this.dada.balanceOf(pm.address)).toString()
+    );
   });
 });

@@ -118,7 +118,7 @@ contract BetaProjectTemplate is BaseProjectTemplate {
         uint256 _profit_rate,
         PhaseInfo[] memory _phases,
         address[] memory _replan_grants,
-        uint256 __placeholder
+        uint256 _insurance_rate
     ) public onlyOwner projectJustCreated {
         require(_phases.length > 1, "ProjectTemplate: phase length");
         require(
@@ -160,6 +160,7 @@ contract BetaProjectTemplate is BaseProjectTemplate {
         raise_end = _raise_end;
         min_amount = _min;
         max_amount = _max;
+        insurance_rate = _insurance_rate;
         insurance_deadline = _raise_end + INSURANCE_WINDOW * BLOCKS_PER_DAY;
         require(
             _raise_start >= audit_end,
@@ -685,18 +686,13 @@ contract BetaProjectTemplate is BaseProjectTemplate {
         } while (again);
     }
 
-    function platform_audit(bool pass) public override platformRequired {
-        require(
-            status == ProjectStatus.Auditing && block.number < audit_end,
-            "ProjectTemplate: no audit window"
-        );
-        if (pass) {
-            status = ProjectStatus.Audited;
-            emit ProjectAudited(id);
-        } else {
-            status = ProjectStatus.Failed;
-            emit ProjectFailed(id);
-        }
+    function platform_audit(bool pass, uint256 _insurance_rate)
+        public
+        override
+        platformRequired
+    {
+        heartbeat();
+        super.platform_audit(pass, _insurance_rate);
     }
 
     // only platform can recieve investment

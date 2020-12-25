@@ -133,7 +133,7 @@ describe("Project audit by committee", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
     await this.usdt
@@ -209,7 +209,7 @@ describe("Project audit by committee", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
     await this.usdt
@@ -283,7 +283,7 @@ describe("Project audit by committee", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
     await this.usdt

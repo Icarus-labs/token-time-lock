@@ -11,7 +11,7 @@ interface IBaseProjectTemplate {
 
     function mark_insurance_paid() external;
 
-    function platform_audit(bool) external;
+    function platform_audit(bool, uint256) external;
 
     function platform_invest(address account, uint256 amount)
         external
@@ -34,4 +34,6 @@ interface IBaseProjectTemplate {
     function status() external view returns (ProjectStatus);
 
     function actual_project_status() external view returns (ProjectStatus);
+
+    function insurance_rate() external view returns (uint256);
 }

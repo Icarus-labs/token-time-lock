@@ -91,7 +91,8 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
         uint256 _min,
         uint256 _max,
         uint256 _repay_deadline,
-        uint256 _profit_rate
+        uint256 _profit_rate,
+        uint256 _insurance_rate
     ) public onlyOwner projectJustCreated {
         fund_receiver = _recv;
         audit_end = block.number + BLOCKS_PER_DAY * AUDIT_WINDOW;
@@ -106,6 +107,7 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
         repay_deadline = _repay_deadline;
         profit_rate = _profit_rate;
         status = ProjectStatus.Auditing;
+        insurance_rate = _insurance_rate;
     }
 
     function set_fund_receiver(address recv) public onlyOwner {
@@ -343,9 +345,13 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
         } while (again);
     }
 
-    function platform_audit(bool pass) public override platformRequired {
+    function platform_audit(bool pass, uint256 _insurance_rate)
+        public
+        override
+        platformRequired
+    {
         heartbeat();
-        super._audit(pass);
+        super.platform_audit(pass, _insurance_rate);
     }
 
     // only platform can recieve investment

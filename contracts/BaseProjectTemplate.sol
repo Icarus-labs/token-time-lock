@@ -19,6 +19,7 @@ abstract contract BaseProjectTemplate is Ownable, ProjectToken {
     uint256 public min_amount;
     uint256 public actual_raised;
     uint256 public insurance_deadline;
+    uint256 public insurance_rate;
     address public fund_receiver;
     uint256 public audit_end;
     uint256 public raise_start;
@@ -54,7 +55,7 @@ abstract contract BaseProjectTemplate is Ownable, ProjectToken {
         platform = _platform;
     }
 
-    function setName(string calldata _name) external onlyOwner {
+    function setName(string calldata _name) public onlyOwner {
         name = _name;
     }
 
@@ -62,21 +63,20 @@ abstract contract BaseProjectTemplate is Ownable, ProjectToken {
         status = ProjectStatus.InsurancePaid;
     }
 
-    function _audit(bool pass) internal {
+    function platform_audit(bool pass, uint256 _insurance_rate) public virtual {
         require(
             status == ProjectStatus.Auditing && block.number < audit_end,
-            "BaseProjectTemplate: no audit window"
+            "ProjectTemplate: no audit window"
         );
         if (pass) {
             status = ProjectStatus.Audited;
+            insurance_rate = _insurance_rate;
             emit ProjectAudited(id);
         } else {
             status = ProjectStatus.Failed;
             emit ProjectFailed(id);
         }
     }
-
-    function platform_audit(bool pass) external virtual;
 
     function _invest(address account, uint256 amount)
         internal
@@ -107,23 +107,20 @@ abstract contract BaseProjectTemplate is Ownable, ProjectToken {
     }
 
     function platform_invest(address account, uint256 amount)
-        external
+        public
         virtual
         returns (uint256);
 
-    function platform_refund(address account)
-        external
-        virtual
-        returns (uint256);
+    function platform_refund(address account) public virtual returns (uint256);
 
-    function platform_repay(address account) external virtual returns (uint256);
+    function platform_repay(address account) public virtual returns (uint256);
 
     function platform_liquidate(address account)
-        external
+        public
         virtual
         returns (uint256, uint256);
 
-    function heartbeat() external virtual;
+    function heartbeat() public virtual;
 
     function _beforeTokenTransfer(
         address from,

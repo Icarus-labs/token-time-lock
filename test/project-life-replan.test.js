@@ -112,7 +112,7 @@ describe("ProjectTemplate replan situations", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
     await this.dada
@@ -131,7 +131,7 @@ describe("ProjectTemplate replan situations", function () {
     await sent.wait(1);
     await this.miningEco
       .connect(platformManager)
-      .audit_project(projectId, true);
+      .audit_project(projectId, true, 1000);
     await mineBlocks(auditWindow + 10);
     let project = await miningEcoPM.projects(projectId);
     let projectTemplate = ProjectTemplate.attach(project.addr);
@@ -198,7 +198,7 @@ describe("ProjectTemplate replan situations", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
 
@@ -218,7 +218,7 @@ describe("ProjectTemplate replan situations", function () {
     await sent.wait(1);
     await this.miningEco
       .connect(platformManager)
-      .audit_project(projectId, true);
+      .audit_project(projectId, true, 1000);
     await mineBlocks(auditWindow + 10);
     let project = await miningEcoPM.projects(projectId);
     let projectTemplate = ProjectTemplate.attach(project.addr);
@@ -273,7 +273,7 @@ describe("ProjectTemplate replan situations", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
 
@@ -293,7 +293,7 @@ describe("ProjectTemplate replan situations", function () {
     await sent.wait(1);
     await this.miningEco
       .connect(platformManager)
-      .audit_project(projectId, true);
+      .audit_project(projectId, true, 1000);
     await mineBlocks(auditWindow + 10);
     let project = await miningEcoPM.projects(projectId);
     let projectTemplate = ProjectTemplate.attach(project.addr);
@@ -355,7 +355,7 @@ describe("ProjectTemplate replan situations", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
 
@@ -375,7 +375,7 @@ describe("ProjectTemplate replan situations", function () {
     await sent.wait(1);
     await this.miningEco
       .connect(platformManager)
-      .audit_project(projectId, true);
+      .audit_project(projectId, true, 1000);
     await mineBlocks(auditWindow + 10);
     let project = await miningEcoPM.projects(projectId);
     let projectTemplate = ProjectTemplate.attach(project.addr);
@@ -441,7 +441,7 @@ describe("ProjectTemplate replan situations", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
 
@@ -461,7 +461,7 @@ describe("ProjectTemplate replan situations", function () {
     await sent.wait(1);
     await this.miningEco
       .connect(platformManager)
-      .audit_project(projectId, true);
+      .audit_project(projectId, true, 1000);
     await mineBlocks(auditWindow + 10);
     let project = await miningEcoPM.projects(projectId);
     let projectTemplate = ProjectTemplate.attach(project.addr);
@@ -532,7 +532,7 @@ describe("ProjectTemplate replan situations", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
     await this.dada
@@ -551,7 +551,7 @@ describe("ProjectTemplate replan situations", function () {
     await sent.wait(1);
     await this.miningEco
       .connect(platformManager)
-      .audit_project(projectId, true);
+      .audit_project(projectId, true, 1000);
     await mineBlocks(auditWindow + 10);
     let project = await miningEcoPM.projects(projectId);
     let projectTemplate = ProjectTemplate.attach(project.addr);

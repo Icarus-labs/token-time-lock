@@ -141,7 +141,7 @@ describe("ProjectTemplate illegal votes", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
     await this.dada
@@ -161,7 +161,7 @@ describe("ProjectTemplate illegal votes", function () {
 
     await this.miningEco
       .connect(platformManager)
-      .audit_project(projectId, true);
+      .audit_project(projectId, true, 1000);
     await mineBlocks(auditWindow);
 
     let project = await miningEcoPM.projects(projectId);

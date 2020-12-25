@@ -15,6 +15,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./HasConstantSlots.sol";
 import "./ProjectStatus.sol";
 import "./MiningEcoBonus.sol";
+import "./TemplateInitType.sol";
 
 import "./interfaces/IBaseProjectTemplate.sol";
 import "./interfaces/IBaseProjectFactory.sol";
@@ -33,10 +34,11 @@ contract MiningEco is HasConstantSlots {
     using Address for address;
     using SafeERC20 for IERC20;
 
+    uint256 public constant DEFAULT_INSURANCE_RATE = 1000;
+
     IERC20 USDT_address;
     bool public initialized;
     uint256 public fee_rate;
-    uint256 public insurance_rate;
     address public platform_token;
     address payable public insurance_vault;
     address payable public fee_vault;
@@ -144,7 +146,6 @@ contract MiningEco is HasConstantSlots {
         fee_vault = _fee_vault;
         USDT_address = IERC20(usdt);
         fee_rate = 50;
-        insurance_rate = 1000;
         audit_committee = msg.sender;
         slot = _COMMITTEE_SLOT;
         address _sender = msg.sender;
@@ -155,6 +156,10 @@ contract MiningEco is HasConstantSlots {
         initialized = true;
     }
 
+    function set_fee_rate(uint256 _fr) public isCommittee {
+        fee_rate = _fr;
+    }
+
     function set_price_feed(address _price_feed) public isCommittee {
         require(_price_feed != address(0), "MiningEco: wrong address");
         price_feed = _price_feed;
@@ -163,6 +168,10 @@ contract MiningEco is HasConstantSlots {
     function set_platform_token(address addr) public isCommittee {
         require(addr != address(0), "MiningEco: wrong address");
         platform_token = addr;
+    }
+
+    function set_fee_vault(address payable _vault) public isCommittee {
+        fee_vault = _vault;
     }
 
     function set_insurance_vault(address payable vault) public isCommittee {
@@ -214,12 +223,15 @@ contract MiningEco is HasConstantSlots {
         return committee;
     }
 
-    function audit_project(bytes32 project_id, bool yn)
-        public
-        isAuditCommittee
-        projectIdExists(project_id)
-    {
-        IBaseProjectTemplate(projects[project_id].addr).platform_audit(yn);
+    function audit_project(
+        bytes32 project_id,
+        bool yn,
+        uint256 _insurance_rate
+    ) public isAuditCommittee projectIdExists(project_id) {
+        IBaseProjectTemplate(projects[project_id].addr).platform_audit(
+            yn,
+            _insurance_rate
+        );
         emit ProjectAudit(project_id, yn);
     }
 
@@ -269,6 +281,23 @@ contract MiningEco is HasConstantSlots {
         emit ProjectRefund(project_id, msg.sender, amt);
     }
 
+    function _get_insurance_rate_from_calldata(uint256 template_id, bytes calldata init_calldata) internal returns(uint256) {
+        uint256 _insurance_rate;
+        TemplateInitType init_type = IBaseProjectFactory(template_gallery[template_id]).init_type();
+        if (
+            init_type == TemplateInitType.Project
+        ) {
+             (,,,,,,,,, _insurance_rate) = abi.decode(init_calldata[4:], (address,uint256,uint256,uint256,uint256,uint256,uint256,uint256[],address[],uint256));
+        } else if (
+            init_type == TemplateInitType.MoneyDao
+        ) {
+             (,,,,,, _insurance_rate) = abi.decode(init_calldata[4:], (address,uint256,uint256,uint256,uint256,uint256,uint256));
+        } else {
+            _insurance_rate = DEFAULT_INSURANCE_RATE;
+        }
+        return _insurance_rate;
+    }
+
     // new_project is the main entrance for a project mananger
     // called with template_id, max raising amount and calldata for initialization
     function new_project(
@@ -283,12 +312,18 @@ contract MiningEco is HasConstantSlots {
         templateIdExists(template_id)
         uniqueProjectId(project_id)
     {
-        uint256 fee = max_amount.mul(fee_rate).div(10000);
-        USDT_address.safeTransferFrom(msg.sender, fee_vault, fee);
         require(
             template_gallery[template_id] != address(0),
             "MiningEco: unknown template"
         );
+        USDT_address.safeTransferFrom(
+            msg.sender,
+            fee_vault,
+            max_amount.mul(fee_rate).div(10000)
+        );
+
+        uint256 _insurance_rate = _get_insurance_rate_from_calldata(template_id, init_calldata);
+
         address project_addr =
             IBaseProjectFactory(template_gallery[template_id]).instantiate(
                 project_id,
@@ -312,18 +347,17 @@ contract MiningEco is HasConstantSlots {
             calldatas[0] = abi.encodeWithSelector(
                 this.audit_project.selector,
                 project_id,
-                true
+                true,
+                _insurance_rate
             );
-            uint256 proposal_id =
-                ICommittee(audit_committee).propose(
-                    targets,
-                    values,
-                    sigs,
-                    calldatas,
-                    block.number + 1,
-                    IProjectAudit(project_addr).audit_end()
-                );
-            p.proposal_id = proposal_id;
+            p.proposal_id = ICommittee(audit_committee).propose(
+                targets,
+                values,
+                sigs,
+                calldatas,
+                block.number + 1,
+                IProjectAudit(project_addr).audit_end()
+            );
         }
 
         projects[project_id] = p;
@@ -368,14 +402,19 @@ contract MiningEco is HasConstantSlots {
             "MiningEco: not succeeded for insurance"
         );
         uint256 raised = IBaseProjectTemplate(project).actual_raised();
-        uint256 insurance_amt = usdt_to_platform_token(raised.div(10));
-        IERC20(platform_token).safeTransferFrom(
-            msg.sender,
-            insurance_vault,
-            insurance_amt
-        );
+        uint256 insurance_rate = IBaseProjectTemplate(project).insurance_rate();
+        uint256 insurance_amt;
+        if (insurance_rate > 0) {
+            insurance_amt = usdt_to_platform_token(
+                raised.mul(insurance_rate).div(10000)
+            );
+            IERC20(platform_token).safeTransferFrom(
+                msg.sender,
+                insurance_vault,
+                insurance_amt
+            );
+        }
         IBaseProjectTemplate(project).mark_insurance_paid();
-
         emit ProjectInsurancePaid(projectid, msg.sender, insurance_amt);
     }
 

@@ -104,6 +104,7 @@ describe("MoneyDao", function () {
         max.toString(),
         repay_deadline,
         profit_rate,
+        1000,
       ]
     );
     await this.dada
@@ -122,7 +123,7 @@ describe("MoneyDao", function () {
     await sent.wait(1);
     await this.miningEco
       .connect(platformManager)
-      .audit_project(projectId, true);
+      .audit_project(projectId, true, 1000);
     let project = await this.miningEco.projects(projectId);
     let moneydao = Template.attach(project.addr);
     moneydao = moneydao.connect(pm);

@@ -118,7 +118,7 @@ describe("ProjectTemplate lifetime changes", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
 
@@ -179,7 +179,7 @@ describe("ProjectTemplate lifetime changes", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
     await this.dada
@@ -202,7 +202,7 @@ describe("ProjectTemplate lifetime changes", function () {
     expect(await projectTemplate.status()).to.equal(15);
     await this.miningEco
       .connect(platformManager)
-      .audit_project(projectId, false);
+      .audit_project(projectId, false, 1000);
     expect(await projectTemplate.status()).to.equal(5);
   });
 
@@ -238,7 +238,7 @@ describe("ProjectTemplate lifetime changes", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
     await this.dada
@@ -261,7 +261,7 @@ describe("ProjectTemplate lifetime changes", function () {
     expect(await projectTemplate.status()).to.equal(15);
     await this.miningEco
       .connect(platformManager)
-      .audit_project(projectId, true);
+      .audit_project(projectId, true, 1000);
     expect(await projectTemplate.status()).to.equal(17);
   });
 
@@ -297,7 +297,7 @@ describe("ProjectTemplate lifetime changes", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
     await this.dada
@@ -317,7 +317,7 @@ describe("ProjectTemplate lifetime changes", function () {
     let project = await this.miningEco.projects(projectId);
     await this.miningEco
       .connect(platformManager)
-      .audit_project(projectId, true);
+      .audit_project(projectId, true, 1000);
     await mineBlocks(auditWindow + 10);
     let projectTemplate = ProjectTemplate.attach(project.addr);
     let pt = projectTemplate.connect(pm);
@@ -395,7 +395,7 @@ describe("ProjectTemplate lifetime changes", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
     await this.dada
@@ -414,7 +414,7 @@ describe("ProjectTemplate lifetime changes", function () {
     await sent.wait(1);
     await this.miningEco
       .connect(platformManager)
-      .audit_project(projectId, true);
+      .audit_project(projectId, true, 1000);
     await mineBlocks(auditWindow);
     let project = await this.miningEco.projects(projectId);
     let projectTemplate = ProjectTemplate.attach(project.addr);
@@ -499,7 +499,7 @@ describe("ProjectTemplate lifetime changes", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
     await this.dada
@@ -518,7 +518,7 @@ describe("ProjectTemplate lifetime changes", function () {
     await sent.wait(1);
     await this.miningEco
       .connect(platformManager)
-      .audit_project(projectId, true);
+      .audit_project(projectId, true, 1000);
     await mineBlocks(auditWindow);
     let project = await miningEcoPM.projects(projectId);
 
@@ -594,7 +594,7 @@ describe("ProjectTemplate lifetime changes", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
     await this.dada
@@ -613,7 +613,7 @@ describe("ProjectTemplate lifetime changes", function () {
     await sent.wait(1);
     await this.miningEco
       .connect(platformManager)
-      .audit_project(projectId, true);
+      .audit_project(projectId, true, 1000);
     await mineBlocks(auditWindow);
     let project = await miningEcoPM.projects(projectId);
 
@@ -684,7 +684,7 @@ describe("ProjectTemplate lifetime changes", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
     await this.dada
@@ -703,7 +703,7 @@ describe("ProjectTemplate lifetime changes", function () {
     await sent.wait(1);
     await this.miningEco
       .connect(platformManager)
-      .audit_project(projectId, true);
+      .audit_project(projectId, true, 1000);
     await mineBlocks(auditWindow);
     let project = await this.miningEco.projects(projectId);
     let projectTemplate = ProjectTemplate.attach(project.addr);
@@ -761,7 +761,7 @@ describe("ProjectTemplate lifetime changes", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
     await this.dada
@@ -780,7 +780,7 @@ describe("ProjectTemplate lifetime changes", function () {
     await sent.wait(1);
     await this.miningEco
       .connect(platformManager)
-      .audit_project(projectId, true);
+      .audit_project(projectId, true, 1000);
     await mineBlocks(auditWindow + 10);
     let project = await this.miningEco.projects(projectId);
     let projectTemplate = ProjectTemplate.attach(project.addr);
@@ -865,7 +865,7 @@ describe("ProjectTemplate lifetime changes", function () {
         profitRate,
         phases,
         replanGrants,
-        0,
+        1000,
       ]
     );
     await this.dada
@@ -885,7 +885,7 @@ describe("ProjectTemplate lifetime changes", function () {
 
     await this.miningEco
       .connect(platformManager)
-      .audit_project(projectId, true);
+      .audit_project(projectId, true, 1000);
     await mineBlocks(auditWindow);
 
     let project = await miningEcoPM.projects(projectId);

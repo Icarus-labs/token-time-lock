@@ -4,13 +4,14 @@ pragma solidity >=0.4.22 <0.8.0;
 
 import "./TestMoneyDaoTemplate.sol";
 import "./BaseProjectFactory.sol";
+import "./TemplateInitType.sol";
 
 contract TestMoneyDaoFactory is BaseProjectFactory {
     address public USDT_address;
 
     constructor(address _platform, address usdt)
         public
-        BaseProjectFactory(_platform)
+        BaseProjectFactory(_platform, TemplateInitType.MoneyDao)
     {
         USDT_address = usdt;
     }
@@ -20,7 +21,7 @@ contract TestMoneyDaoFactory is BaseProjectFactory {
     }
 
     function instantiate(bytes32 project_id, string calldata symbol)
-        external
+        public
         override
         onlyPlatform
         returns (address p_addr)
