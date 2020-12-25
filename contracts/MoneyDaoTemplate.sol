@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 // Ballot receipt record for a voter
+
 struct VotingReceipt {
     bool hasVoted; // notice Whether or not a vote has been cast
     bool support; //  Whether or not the voter supports the proposal
@@ -47,12 +48,19 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
     uint256 public promised_repay;
     uint256 public active_proposal;
 
+    mapping(address => bool) public proposers;
+
     Proposal[] public proposals;
     VotesRecord[] public votes_records;
     mapping(address => uint256[]) public user_proposals;
 
     modifier projectJustCreated() {
         require(status == ProjectStatus.Created);
+        _;
+    }
+
+    modifier onlyProposers() {
+        require(proposers[msg.sender], "MoneyDaoTemplate: only proposer");
         _;
     }
 
@@ -69,6 +77,12 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
         status = ProjectStatus.Created;
         USDT_address = IERC20(_usdt);
         decimals = 6;
+        proposers[msg.sender] = true;
+    }
+
+    function update_proposer(address np, bool y) public onlyOwner {
+        require(np != address(0));
+        proposers[np] = y;
     }
 
     function initialize(
@@ -109,18 +123,27 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
     }
 
     function create_proposal(
+        uint256 _proposal_id,
         string calldata _desc,
         uint256 _amount,
         uint256 _start,
         uint256 _end
-    ) public returns (uint256) {
+    ) public onlyProposers returns (uint256) {
         require(
             status == ProjectStatus.Rolling,
             "MoneyDaoTemplate: project is not rolling"
         );
         require(
-            active_proposal - proposals.length > 1,
+            proposals.length == 0 || active_proposal - proposals.length > 1,
             "MoneyDaoTemplate: only one active proposal is allowed"
+        );
+        require(
+            _proposal_id == proposals.length,
+            "MoneyDaoTemplate: invalid proposal id"
+        );
+        require(
+            _amount <= USDT_address.balanceOf(address(this)),
+            "MoneyDaoTemplate: not enough fund"
         );
 
         Proposal memory p =
@@ -136,15 +159,14 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
         proposals.push(p);
         VotesRecord memory vr = VotesRecord({for_votes: 0, against_votes: 0});
         votes_records.push(vr);
-        uint256 pid = proposals.length;
-        user_proposals[msg.sender].push(pid);
-        active_proposal = pid;
+        user_proposals[msg.sender].push(_proposal_id);
+        active_proposal = _proposal_id;
 
         require(
             proposals.length == votes_records.length,
             "MoneyDaoTemplate: inconsistent proposals against votes_records"
         );
-        return pid;
+        return _proposal_id;
     }
 
     function actual_project_status() public view returns (ProjectStatus) {
@@ -242,15 +264,16 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
         return false;
     }
 
-    function _heartbeat_rolling() internal returns (bool) {
-        bool again = false;
+    function _heartbeat_rolling() internal returns (bool _again) {
+        require(proposals.length > 0);
         Proposal storage psl = proposals[active_proposal];
-        if (block.number >= psl.end) {
-            again = true;
-            status = ProjectStatus.Repaying;
-            emit ProjectRepaying(id);
+        if (psl.finished == false && block.number >= psl.end) {
+            _again = true;
+            psl.finished = true;
+            _remove_active_proposal();
+            return _again;
         }
-        return again;
+        return _again;
     }
 
     function _heartbeat_repaying() internal returns (bool) {
@@ -259,6 +282,19 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
             emit ProjectFinished(id);
         }
         return false;
+    }
+
+    function fill_repay_tokens(uint256 amount) public {
+        require(
+            USDT_address.allowance(msg.sender, address(this)) >= amount,
+            "MoneyDaoTemplate: USDT allowance not enough"
+        );
+        require(
+            promised_repay <= USDT_address.balanceOf(address(this)).add(amount)
+        );
+        USDT_address.safeTransferFrom(msg.sender, address(this), amount);
+        status = ProjectStatus.Repaying;
+        emit ProjectRepaying(id);
     }
 
     // it should be easier a hearbeat call only move a step forward but considering gas price,
@@ -292,7 +328,9 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
                 emit ProjectRolling(id);
                 again = true;
             } else if (status == ProjectStatus.Rolling) {
-                again = _heartbeat_rolling();
+                if (proposals.length - 1 == active_proposal) {
+                    again = _heartbeat_rolling();
+                }
             } else if (status == ProjectStatus.Liquidating) {
                 if (USDT_address.balanceOf(address(this)) == 0) {
                     status = ProjectStatus.Failed;
@@ -385,10 +423,15 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
 
     function vote(bool support) public {
         heartbeat();
+        Proposal storage p = proposals[active_proposal];
+        require(
+            block.number >= p.start && block.number < p.end,
+            "MoneyDaoTemplate: proposal timing wrong"
+        );
         require(
             status == ProjectStatus.Rolling &&
-                proposals[active_proposal].amount > 0 &&
-                proposals[active_proposal].finished == false,
+                p.amount > 0 &&
+                p.finished == false,
             "MoneyDaoTemplate: proposal not valid"
         );
         _cast_vote(msg.sender, support);

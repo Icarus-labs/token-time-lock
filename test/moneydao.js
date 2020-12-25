@@ -71,7 +71,7 @@ describe("MoneyDao", function () {
     this.balancePM = D18.mul(new BN(1000000000));
     await this.dada.mint(this.balancePM.toString());
     await this.dada.transfer(pm.address, this.balancePM.toString());
-    this.balancePMusdt = D6.mul(new BN(100000));
+    this.balancePMusdt = D6.mul(new BN(100000000));
     await this.usdt.mint(this.balancePMusdt.toString());
     await this.usdt.transfer(pm.address, this.balancePMusdt.toString());
     this.miningEco = this.miningEco.connect(pm);
@@ -140,10 +140,10 @@ describe("MoneyDao", function () {
 
     // everything set up well
 
-    const proposal_id = await moneydao.next_proposal_id();
-    const start = await getBlockNumber();
-    const end = (await start) + 100;
-    const pid = await moneydao.create_proposal(
+    let proposal_id = await moneydao.next_proposal_id();
+    let start = await getBlockNumber();
+    let end = (await start) + 100;
+    let pid = await moneydao.create_proposal(
       proposal_id,
       "test proposal",
       max.div(new BN(2)).toString(),
@@ -152,9 +152,58 @@ describe("MoneyDao", function () {
     );
     expect(await moneydao.proposers(this.miningEco.address)).to.equal(false);
     expect(await moneydao.proposers(pm.address)).to.equal(true);
-    await mineBlocks(2);
     // auth checked
     let moneydao_other = moneydao.connect(other);
     await moneydao_other.vote(true);
+
+    expect((await this.usdt.balanceOf(moneydao.address)).toString()).to.equal(
+      max.div(new BN(2)).toString()
+    );
+
+    proposal_id = await moneydao.next_proposal_id();
+    start = await getBlockNumber();
+    end = (await start) + 100;
+    await expect(
+      moneydao.create_proposal(
+        proposal_id,
+        "test proposal2",
+        max.toString(),
+        start,
+        end
+      )
+    ).to.be.revertedWith("MoneyDaoTemplate: not enough fund");
+
+    proposal_id = await moneydao.next_proposal_id();
+    start = await getBlockNumber();
+    end = (await start) + 100;
+    pid = await moneydao.create_proposal(
+      proposal_id,
+      "test proposal2",
+      max.div(new BN(2)).toString(),
+      start,
+      end
+    );
+    await moneydao_other.vote(true);
+
+    await this.usdt
+      .connect(pm)
+      .approve(
+        moneydao.address,
+        max.mul(new BN(11)).div(new BN(10)).toString()
+      );
+    await moneydao.fill_repay_tokens(
+      max.mul(new BN(11)).div(new BN(10)).toString()
+    );
+
+    // repaying
+    expect(await moneydao.actual_project_status()).to.equal(13);
+
+    await miningEcoOther.repay(projectId);
+    expect(await this.usdt.balanceOf(moneydao.address)).to.equal(
+      ethers.BigNumber.from(0)
+    );
+    expect(await moneydao.actual_project_status()).to.equal(14);
+    await moneydao.heartbeat();
+    expect(await moneydao.status()).to.equal(14);
   });
 });

@@ -141,6 +141,10 @@ contract TestMoneyDaoTemplate is BaseProjectTemplate {
             _proposal_id == proposals.length,
             "MoneyDaoTemplate: invalid proposal id"
         );
+        require(
+            _amount <= USDT_address.balanceOf(address(this)),
+            "MoneyDaoTemplate: not enough fund"
+        );
 
         Proposal memory p =
             Proposal({
@@ -263,10 +267,11 @@ contract TestMoneyDaoTemplate is BaseProjectTemplate {
     function _heartbeat_rolling() internal returns (bool _again) {
         require(proposals.length > 0);
         Proposal storage psl = proposals[active_proposal];
-        if (block.number >= psl.end) {
+        if (psl.finished == false && block.number >= psl.end) {
             _again = true;
-            status = ProjectStatus.Repaying;
-            emit ProjectRepaying(id);
+            psl.finished = true;
+            _remove_active_proposal();
+            return _again;
         }
         return _again;
     }
@@ -277,6 +282,19 @@ contract TestMoneyDaoTemplate is BaseProjectTemplate {
             emit ProjectFinished(id);
         }
         return false;
+    }
+
+    function fill_repay_tokens(uint256 amount) public {
+        require(
+            USDT_address.allowance(msg.sender, address(this)) >= amount,
+            "MoneyDaoTemplate: USDT allowance not enough"
+        );
+        require(
+            promised_repay <= USDT_address.balanceOf(address(this)).add(amount)
+        );
+        USDT_address.safeTransferFrom(msg.sender, address(this), amount);
+        status = ProjectStatus.Repaying;
+        emit ProjectRepaying(id);
     }
 
     // it should be easier a hearbeat call only move a step forward but considering gas price,
