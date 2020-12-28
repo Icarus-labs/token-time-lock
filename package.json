@@ -4,7 +4,7 @@
   "description": "mining ecosystem platform by hardhat",
   "main": "index.js",
   "scripts": {
-    "test": "npx hardhat test"
+    "test": "./test.sh"
   },
   "author": "Kyli",
   "license": "MIT",

@@ -43,9 +43,7 @@ describe("MiningEco create project", function () {
     const Proxy = await ethers.getContractFactory("MiningEcoProxy");
     const proxy = await Proxy.deploy(miningEco.address, admin.address, []);
 
-    const ProjectFactory = await ethers.getContractFactory(
-      "TestProjectFactory"
-    );
+    const ProjectFactory = await ethers.getContractFactory("ProjectFactory");
     this.projectFactory = await ProjectFactory.deploy(
       proxy.address,
       this.usdt.address
@@ -75,9 +73,7 @@ describe("MiningEco create project", function () {
   it("unknown template", async function () {
     const [admin, platformManager, pm, other] = await ethers.getSigners();
     const projectId = "0x" + cryptoRandomString({ length: 64 });
-    const ProjectTemplate = await ethers.getContractFactory(
-      "TestProjectTemplate"
-    );
+    const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
     const max = D6.mul(new BN(1000000));
     const min = D6.mul(new BN(800000));
@@ -120,9 +116,7 @@ describe("MiningEco create project", function () {
   it("only one phase is not allowed", async function () {
     const [admin, platformManager, pm, other] = await ethers.getSigners();
     const projectId = "0x" + cryptoRandomString({ length: 64 });
-    const ProjectTemplate = await ethers.getContractFactory(
-      "TestProjectTemplate"
-    );
+    const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
     const max = D6.mul(new BN(1000000));
     const min = D6.mul(new BN(800000));
@@ -165,9 +159,7 @@ describe("MiningEco create project", function () {
   it("phase boundaries across", async function () {
     const [admin, platformManager, pm, other] = await ethers.getSigners();
     const projectId = "0x" + cryptoRandomString({ length: 64 });
-    const ProjectTemplate = await ethers.getContractFactory(
-      "TestProjectTemplate"
-    );
+    const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
     const max = D6.mul(new BN(1000000));
     const min = D6.mul(new BN(800000));
@@ -213,9 +205,7 @@ describe("MiningEco create project", function () {
   it("insufficient creation fee", async function () {
     const [admin, platformManager, pm, other] = await ethers.getSigners();
     const projectId = "0x" + cryptoRandomString({ length: 64 });
-    const ProjectTemplate = await ethers.getContractFactory(
-      "TestProjectTemplate"
-    );
+    const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
     const max = D6.mul(new BN(1000000000));
     const min = D6.mul(new BN(20000));
@@ -261,9 +251,7 @@ describe("MiningEco create project", function () {
   it("not ready for insurance", async function () {
     const [admin, platformManager, pm, other] = await ethers.getSigners();
     const projectId = "0x" + cryptoRandomString({ length: 64 });
-    const ProjectTemplate = await ethers.getContractFactory(
-      "TestProjectTemplate"
-    );
+    const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
     // pm dada balance is 10000
     const max = D6.mul(new BN(2000000));
@@ -312,9 +300,7 @@ describe("MiningEco create project", function () {
   it("not 100 percent", async function () {
     const [admin, platformManager, pm, other] = await ethers.getSigners();
     const projectId = "0x" + cryptoRandomString({ length: 64 });
-    const ProjectTemplate = await ethers.getContractFactory(
-      "TestProjectTemplate"
-    );
+    const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
     const max = D6.mul(new BN(1000000));
     const min = D6.mul(new BN(800000));
@@ -360,9 +346,7 @@ describe("MiningEco create project", function () {
   it("wrong phase duration", async function () {
     const [admin, platformManager, pm, other] = await ethers.getSigners();
     const projectId = "0x" + cryptoRandomString({ length: 64 });
-    const ProjectTemplate = await ethers.getContractFactory(
-      "TestProjectTemplate"
-    );
+    const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
     const max = D6.mul(new BN(1000000));
     const min = D6.mul(new BN(800000));
@@ -414,9 +398,7 @@ describe("MiningEco create project", function () {
     const blockNumber = await getBlockNumber();
     const auditWindow = 50;
     const projectId = "0x" + cryptoRandomString({ length: 64 });
-    const ProjectTemplate = await ethers.getContractFactory(
-      "TestProjectTemplate"
-    );
+    const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
     const max = D6.mul(new BN(1000000));
     const min = max.mul(new BN(8)).div(new BN(10));
@@ -518,9 +500,7 @@ describe("MiningEco create project", function () {
     const blockNumber = await getBlockNumber();
     const auditWindow = 50;
     const projectId = "0x" + cryptoRandomString({ length: 64 });
-    const ProjectTemplate = await ethers.getContractFactory(
-      "TestProjectTemplate"
-    );
+    const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
     const max = D6.mul(new BN(1000000));
     const min = max.mul(new BN(8)).div(new BN(10));

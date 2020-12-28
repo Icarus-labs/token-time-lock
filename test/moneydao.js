@@ -43,9 +43,7 @@ describe("MoneyDao", function () {
     const Proxy = await ethers.getContractFactory("MiningEcoProxy");
     const proxy = await Proxy.deploy(miningEco.address, admin.address, []);
 
-    const MoneyDaoFactory = await ethers.getContractFactory(
-      "TestMoneyDaoFactory"
-    );
+    const MoneyDaoFactory = await ethers.getContractFactory("MoneyDaoFactory");
     this.moneydaoFactory = await MoneyDaoFactory.deploy(
       proxy.address,
       this.usdt.address
@@ -88,7 +86,7 @@ describe("MoneyDao", function () {
       other2,
     ] = await ethers.getSigners();
     const projectId = "0x" + cryptoRandomString({ length: 64 });
-    const Template = await ethers.getContractFactory("TestMoneyDaoTemplate");
+    const Template = await ethers.getContractFactory("MoneyDaoTemplate");
     const initializeFrgmt = Template.interface.getFunction("initialize");
     const raise_span = 50;
     const max = D6.mul(new BN(1000000));

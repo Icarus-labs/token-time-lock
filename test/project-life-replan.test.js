@@ -42,9 +42,7 @@ describe("ProjectTemplate replan situations", function () {
 
     const Proxy = await ethers.getContractFactory("MiningEcoProxy");
     const proxy = await Proxy.deploy(miningEco.address, admin.address, []);
-    const ProjectFactory = await ethers.getContractFactory(
-      "TestProjectFactory"
-    );
+    const ProjectFactory = await ethers.getContractFactory("ProjectFactory");
     const projectFactory = await ProjectFactory.deploy(
       proxy.address,
       this.usdt.address
@@ -84,9 +82,7 @@ describe("ProjectTemplate replan situations", function () {
     const blockNumber = await getBlockNumber();
     const miningEcoPM = this.miningEco.connect(pm);
     const projectId = "0x" + cryptoRandomString({ length: 64 });
-    const ProjectTemplate = await ethers.getContractFactory(
-      "TestProjectTemplate"
-    );
+    const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
     const max = D6.mul(new BN(1000000));
     const min = max.mul(new BN(8)).div(new BN(10));
@@ -170,9 +166,7 @@ describe("ProjectTemplate replan situations", function () {
     const blockNumber = await getBlockNumber();
     const miningEcoPM = this.miningEco.connect(pm);
     const projectId = "0x" + cryptoRandomString({ length: 64 });
-    const ProjectTemplate = await ethers.getContractFactory(
-      "TestProjectTemplate"
-    );
+    const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
     const max = D6.mul(new BN(1000000));
     const min = max.mul(new BN(8)).div(new BN(10));
@@ -245,9 +239,7 @@ describe("ProjectTemplate replan situations", function () {
     const blockNumber = await getBlockNumber();
     const miningEcoPM = this.miningEco.connect(pm);
     const projectId = "0x" + cryptoRandomString({ length: 64 });
-    const ProjectTemplate = await ethers.getContractFactory(
-      "TestProjectTemplate"
-    );
+    const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
     const max = D6.mul(new BN(1000000));
     const min = max.mul(new BN(8)).div(new BN(10));
@@ -327,9 +319,7 @@ describe("ProjectTemplate replan situations", function () {
     const blockNumber = await getBlockNumber();
     const miningEcoPM = this.miningEco.connect(pm);
     const projectId = "0x" + cryptoRandomString({ length: 64 });
-    const ProjectTemplate = await ethers.getContractFactory(
-      "TestProjectTemplate"
-    );
+    const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
     const max = D6.mul(new BN(1000000));
     const min = max.mul(new BN(8)).div(new BN(10));
@@ -413,9 +403,7 @@ describe("ProjectTemplate replan situations", function () {
     const blockNumber = await getBlockNumber();
     const miningEcoPM = this.miningEco.connect(pm);
     const projectId = "0x" + cryptoRandomString({ length: 64 });
-    const ProjectTemplate = await ethers.getContractFactory(
-      "TestProjectTemplate"
-    );
+    const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
     const max = D6.mul(new BN(1000000));
     const min = max.mul(new BN(8)).div(new BN(10));
@@ -504,9 +492,7 @@ describe("ProjectTemplate replan situations", function () {
     const blockNumber = await getBlockNumber();
     const miningEcoPM = this.miningEco.connect(pm);
     const projectId = "0x" + cryptoRandomString({ length: 64 });
-    const ProjectTemplate = await ethers.getContractFactory(
-      "TestProjectTemplate"
-    );
+    const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
     const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
     const max = D6.mul(new BN(1000000));
     const min = max.mul(new BN(8)).div(new BN(10));

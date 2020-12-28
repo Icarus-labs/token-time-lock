@@ -47,9 +47,7 @@ describe("all kinds of price feeds", function () {
 
     const Proxy = await ethers.getContractFactory("MiningEcoProxy");
     const proxy = await Proxy.deploy(miningEco.address, admin.address, []);
-    const ProjectFactory = await ethers.getContractFactory(
-      "TestProjectFactory"
-    );
+    const ProjectFactory = await ethers.getContractFactory("ProjectFactory");
     const projectFactory = await ProjectFactory.deploy(
       proxy.address,
       this.usdt.address

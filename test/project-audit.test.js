@@ -42,9 +42,7 @@ describe("Project audit by committee", function () {
 
     const Proxy = await ethers.getContractFactory("MiningEcoProxy");
     const proxy = await Proxy.deploy(miningEco.address, admin.address, []);
-    const ProjectFactory = await ethers.getContractFactory(
-      "TestProjectFactory"
-    );
+    const ProjectFactory = await ethers.getContractFactory("ProjectFactory");
     const projectFactory = await ProjectFactory.deploy(
       proxy.address,
       this.usdt.address
@@ -95,9 +93,7 @@ describe("Project audit by committee", function () {
     ] = await ethers.getSigners();
     const blockNumber = await getBlockNumber();
     const projectId = "0x" + cryptoRandomString({ length: 64 });
-    const ProjectTemplate = await ethers.getContractFactory(
-      "TestProjectTemplate"
-    );
+    const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
     const Committee = await ethers.getContractFactory("MiningCommittee");
     const auditCommittee = await Committee.deploy();
     await auditCommittee.update_member(cmt1.address, 1);
@@ -171,9 +167,7 @@ describe("Project audit by committee", function () {
     ] = await ethers.getSigners();
     const blockNumber = await getBlockNumber();
     const projectId = "0x" + cryptoRandomString({ length: 64 });
-    const ProjectTemplate = await ethers.getContractFactory(
-      "TestProjectTemplate"
-    );
+    const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
     const Committee = await ethers.getContractFactory("MiningCommittee");
     const auditCommittee = await Committee.deploy();
     await auditCommittee.update_member(cmt1.address, 1);
@@ -245,9 +239,7 @@ describe("Project audit by committee", function () {
     ] = await ethers.getSigners();
     const blockNumber = await getBlockNumber();
     const projectId = "0x" + cryptoRandomString({ length: 64 });
-    const ProjectTemplate = await ethers.getContractFactory(
-      "TestProjectTemplate"
-    );
+    const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
     const Committee = await ethers.getContractFactory("MiningCommittee");
     const auditCommittee = await Committee.deploy();
     await auditCommittee.update_member(cmt1.address, 1);
