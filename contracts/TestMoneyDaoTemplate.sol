@@ -66,7 +66,7 @@ contract TestMoneyDaoTemplate is BaseProjectTemplate {
 
     event ProposalPassed(bytes32 projectid, uint256 proposalid);
     event ProposalDenied(bytes32 projectid, uint256 proposalid);
-    event MoneyGived(bytes32 projectid, uint256 amount);
+    event MoneyGiven(bytes32 projectid, uint256 amount);
 
     constructor(
         bytes32 _pid,
@@ -478,7 +478,7 @@ contract TestMoneyDaoTemplate is BaseProjectTemplate {
         psl.finished = true;
         psl.result = true;
         emit ProposalPassed(id, active_proposal);
-        emit MoneyGived(id, psl.amount);
+        emit MoneyGiven(id, psl.amount);
 
         _remove_active_proposal();
     }

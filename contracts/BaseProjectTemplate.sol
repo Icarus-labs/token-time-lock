@@ -59,7 +59,7 @@ abstract contract BaseProjectTemplate is Ownable, ProjectToken {
         name = _name;
     }
 
-    function mark_insurance_paid() public platformRequired {
+    function mark_insurance_paid() public virtual platformRequired {
         status = ProjectStatus.InsurancePaid;
     }
 
