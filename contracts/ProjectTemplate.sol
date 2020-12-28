@@ -702,46 +702,19 @@ contract ProjectTemplate is BaseProjectTemplate {
         returns (uint256)
     {
         heartbeat();
-        require(
-            status == ProjectStatus.Raising ||
-                status == ProjectStatus.Succeeded,
-            "ProjectTemplate: not raising"
-        );
-        require(
-            max_amount > actual_raised,
-            "ProjectTemplate: reach max amount"
-        );
-        uint256 invest_amt = amount;
-        if (max_amount < actual_raised + amount) {
-            invest_amt = max_amount - actual_raised;
-        }
-
-        _mint(account, invest_amt);
-
-        actual_raised = actual_raised.add(invest_amt);
-        if (actual_raised >= min_amount && status == ProjectStatus.Raising) {
-            status = ProjectStatus.Succeeded;
-            emit ProjectSucceeded(id);
-        }
-        return invest_amt;
+        return super.platform_invest(account, amount);
     }
 
     function platform_refund(address account)
         public
         override
         platformRequired
-        returns (uint256)
+        returns (uint256, uint256)
     {
         heartbeat();
-        require(
-            status == ProjectStatus.Refunding,
-            "ProjectTemplate: not in refunding"
-        );
-        uint256 amount = _balances[account];
-        require(amount > 0);
+        (uint256 amount, ) = super.platform_refund(account);
         USDT_address.safeTransfer(account, amount);
-        _transfer(account, address(this), amount);
-        return amount;
+        return (amount, amount);
     }
 
     function platform_liquidate(address account)
@@ -751,15 +724,9 @@ contract ProjectTemplate is BaseProjectTemplate {
         returns (uint256, uint256)
     {
         heartbeat();
-        require(
-            status == ProjectStatus.Liquidating,
-            "ProjectTemplate: not in liquidating"
-        );
-        uint256 amount = _balances[account];
-        require(amount > 0, "ProjectTemplate: no share");
+        (uint256 amount, ) = super.platform_liquidate(account);
         uint256 l_amount = _locked_investment().mul(amount).div(actual_raised);
         USDT_address.safeTransfer(account, l_amount);
-        _transfer(account, address(this), amount);
         return (amount, l_amount);
     }
 
@@ -767,24 +734,18 @@ contract ProjectTemplate is BaseProjectTemplate {
         public
         override
         platformRequired
-        returns (uint256)
+        returns (uint256, uint256)
     {
         heartbeat();
-        require(
-            status == ProjectStatus.Repaying,
-            "ProjectTemplate: not in repaying"
-        );
-        uint256 amount = _balances[account];
-        require(amount > 0);
+        (uint256 amount, ) = super.platform_repay(account);
         uint256 profit_total = amount.mul(profit_rate).div(10000).add(amount);
         uint256 this_usdt_balance = USDT_address.balanceOf(address(this));
         require(this_usdt_balance > 0, "ProjectTemplate: no balance");
         if (profit_total > this_usdt_balance) {
             profit_total = this_usdt_balance;
         }
-        _transfer(account, address(this), amount);
         USDT_address.safeTransfer(account, profit_total);
-        return amount;
+        return (amount, amount);
     }
 
     function vote_phase(uint256 phase_id, bool support) public {

@@ -63,11 +63,7 @@ abstract contract BaseProjectTemplate is Ownable, ProjectToken {
         status = ProjectStatus.InsurancePaid;
     }
 
-    function platform_audit(bool pass, uint256 _insurance_rate) public virtual {
-        require(
-            status == ProjectStatus.Auditing && block.number < audit_end,
-            "ProjectTemplate: no audit window"
-        );
+    function _platform_audit(bool pass, uint256 _insurance_rate) internal {
         if (pass) {
             status = ProjectStatus.Audited;
             insurance_rate = _insurance_rate;
@@ -78,19 +74,21 @@ abstract contract BaseProjectTemplate is Ownable, ProjectToken {
         }
     }
 
-    function _invest(address account, uint256 amount)
+    function platform_audit(bool _pass, uint256 _insurance_rate)
+        public
+        virtual
+    {
+        require(
+            status == ProjectStatus.Auditing && block.number < audit_end,
+            "ProjectTemplate: no audit window"
+        );
+        _platform_audit(_pass, _insurance_rate);
+    }
+
+    function _platform_invest(address account, uint256 amount)
         internal
         returns (uint256)
     {
-        require(
-            status == ProjectStatus.Raising ||
-                status == ProjectStatus.Succeeded,
-            "BaseProjectTemplate: not raising"
-        );
-        require(
-            max_amount > actual_raised,
-            "BaseProjectTemplate: reach max amount"
-        );
         uint256 invest_amt = amount;
         if (max_amount < actual_raised + amount) {
             invest_amt = max_amount - actual_raised;
@@ -109,16 +107,65 @@ abstract contract BaseProjectTemplate is Ownable, ProjectToken {
     function platform_invest(address account, uint256 amount)
         public
         virtual
-        returns (uint256);
+        returns (uint256)
+    {
+        require(
+            status == ProjectStatus.Raising ||
+                status == ProjectStatus.Succeeded,
+            "BaseProjectTemplate: not raising"
+        );
+        require(
+            max_amount > actual_raised,
+            "BaseProjectTemplate: reach max amount"
+        );
+        return _platform_invest(account, amount);
+    }
 
-    function platform_refund(address account) public virtual returns (uint256);
+    function _recycle_options(address account) internal returns (uint256) {
+        uint256 balance = _balances[account];
+        require(balance > 0);
+        _transfer(account, address(this), balance);
+        return balance;
+    }
 
-    function platform_repay(address account) public virtual returns (uint256);
+    function platform_refund(address account)
+        public
+        virtual
+        returns (uint256, uint256)
+    {
+        require(
+            status == ProjectStatus.Refunding,
+            "BaseProjectTemplate: not in refunding"
+        );
+        uint256 amt = _recycle_options(account);
+        return (amt, amt);
+    }
+
+    function platform_repay(address account)
+        public
+        virtual
+        returns (uint256, uint256)
+    {
+        require(
+            status == ProjectStatus.Repaying,
+            "BaseProjectTemplate: not in repaying"
+        );
+        uint256 amt = _recycle_options(account);
+        return (amt, amt);
+    }
 
     function platform_liquidate(address account)
         public
         virtual
-        returns (uint256, uint256);
+        returns (uint256, uint256)
+    {
+        require(
+            status == ProjectStatus.Liquidating,
+            "BaseProjectTemplate: not in liquidating"
+        );
+        uint256 amt = _recycle_options(account);
+        return (amt, amt);
+    }
 
     function heartbeat() public virtual;
 

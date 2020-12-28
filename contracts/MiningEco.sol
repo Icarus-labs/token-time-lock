@@ -265,7 +265,7 @@ contract MiningEco is HasConstantSlots {
 
     function repay(bytes32 project_id) external projectIdExists(project_id) {
         address project_address = projects[project_id].addr;
-        uint256 amt =
+        (uint256 amt, ) =
             IBaseProjectTemplate(project_address).platform_repay(msg.sender);
         _deduct_total_deposit(amt);
         emit ProjectRepay(project_id, msg.sender, amt);
@@ -275,7 +275,7 @@ contract MiningEco is HasConstantSlots {
     // what so ever left
     function refund(bytes32 project_id) external projectIdExists(project_id) {
         address project_address = projects[project_id].addr;
-        uint256 amt =
+        (uint256 amt, ) =
             IBaseProjectTemplate(project_address).platform_refund(msg.sender);
         _deduct_total_deposit(amt);
         emit ProjectRefund(project_id, msg.sender, amt);

@@ -21,9 +21,13 @@ interface IBaseProjectTemplate {
         external
         returns (uint256, uint256);
 
-    function platform_repay(address account) external returns (uint256);
+    function platform_repay(address account)
+        external
+        returns (uint256, uint256);
 
-    function platform_refund(address account) external returns (uint256);
+    function platform_refund(address account)
+        external
+        returns (uint256, uint256);
 
     function heartbeat() external;
 
