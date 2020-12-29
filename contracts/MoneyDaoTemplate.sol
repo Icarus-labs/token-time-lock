@@ -118,11 +118,26 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
         fund_receiver = recv;
     }
 
-    function voted(address user, uint256 phase_id)
+    function voted(address user, uint256 proposal_id)
         public
         view
-        returns (uint256, bool)
-    {}
+        returns (
+            uint256 _votes,
+            bool _yesorno,
+            bool _voted
+        )
+    {
+        VotesRecord storage vr = votes_records[proposal_id];
+        require(
+            vr.for_votes > 0 || vr.against_votes > 0,
+            "MoneyDaoTemplate: invalid proposal id"
+        );
+        return (
+            vr.receipts[user].votes,
+            vr.receipts[user].support,
+            vr.receipts[user].hasVoted
+        );
+    }
 
     function next_proposal_id() public view returns (uint256) {
         return proposals.length;

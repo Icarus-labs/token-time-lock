@@ -183,7 +183,8 @@ describe("MoneyDao", function () {
       end
     );
     await moneydao_other.vote(true);
-
+    const [, , voted] = await moneydao_other.voted(other.address, proposal_id);
+    expect(voted).to.equal(true);
     await this.usdt
       .connect(pm)
       .approve(
