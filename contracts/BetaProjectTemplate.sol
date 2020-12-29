@@ -50,7 +50,7 @@ contract BetaProjectTemplate is BaseProjectTemplate {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    uint256 public constant BLOCKS_PER_DAY = 6500;
+    uint256 public constant BLOCKS_PER_DAY = 10;
     uint256 public constant REPLAN_NOTICE = 1;
     uint256 public constant REPLAN_VOTE_WINDOW = 3;
     uint256 public constant PHASE_KEEPALIVE = 3;

@@ -281,17 +281,15 @@ contract MiningEco is HasConstantSlots {
         emit ProjectRefund(project_id, msg.sender, amt);
     }
 
-    function _get_insurance_rate_from_calldata(uint256 template_id, bytes calldata init_calldata) internal returns(uint256) {
-        uint256 _insurance_rate;
+    function _get_insurance_rate_from_calldata(uint256 template_id, bytes calldata init_calldata) internal view returns(uint256 _insurance_rate) {
         TemplateInitType init_type = IBaseProjectFactory(template_gallery[template_id]).init_type();
-        if (
-            init_type == TemplateInitType.Project
-        ) {
-             (,,,,,,,,, _insurance_rate) = abi.decode(init_calldata[4:], (address,uint256,uint256,uint256,uint256,uint256,uint256,uint256[],address[],uint256));
-        } else if (
-            init_type == TemplateInitType.MoneyDao
-        ) {
-             (,,,,,, _insurance_rate) = abi.decode(init_calldata[4:], (address,uint256,uint256,uint256,uint256,uint256,uint256));
+        bytes calldata calldata_argv = init_calldata[4:];
+        if (init_type == TemplateInitType.Project) {
+             (,,,,,,,,, _insurance_rate) = abi.decode(calldata_argv, (address,uint256,uint256,uint256,uint256,uint256,uint256,uint256[],address[],uint256));
+        } else if (init_type == TemplateInitType.MoneyDao) {
+             (,,,,,, _insurance_rate) = abi.decode(calldata_argv, (address,uint256,uint256,uint256,uint256,uint256,uint256));
+        } else if (init_type == TemplateInitType.MoneyDaoFixedRaising) {
+            (,,,,,,, _insurance_rate) = abi.decode(calldata_argv, (address,uint256,uint256,uint256,uint256,uint256,uint256,uint256));
         } else {
             _insurance_rate = DEFAULT_INSURANCE_RATE;
         }

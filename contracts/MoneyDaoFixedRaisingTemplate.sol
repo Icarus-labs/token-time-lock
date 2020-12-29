@@ -33,7 +33,7 @@ struct Proposal {
     bool result;
 }
 
-contract MoneyDaoTemplate is BaseProjectTemplate {
+contract MoneyDaoFixedRaisingTemplate is BaseProjectTemplate {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -60,7 +60,10 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
     }
 
     modifier onlyProposers() {
-        require(proposers[msg.sender], "MoneyDaoTemplate: only proposer");
+        require(
+            proposers[msg.sender],
+            "MoneyDaoFixedRaisingTemplate: only proposer"
+        );
         _;
     }
 
@@ -87,7 +90,8 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
 
     function initialize(
         address _recv,
-        uint256 _raise_span,
+        uint256 _raise_start,
+        uint256 _raise_end,
         uint256 _min,
         uint256 _max,
         uint256 _repay_deadline,
@@ -96,18 +100,19 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
     ) public onlyOwner projectJustCreated {
         fund_receiver = _recv;
         audit_end = block.number + BLOCKS_PER_DAY * AUDIT_WINDOW;
-        raise_end = block.number + _raise_span;
+        raise_start = _raise_start;
+        raise_end = _raise_end;
+        require(
+            _raise_start >= audit_end,
+            "MoneyDaoFixedRaisingTemplate: raise start before audit end"
+        );
         min_amount = _min;
         max_amount = _max;
-        insurance_deadline =
-            block.number +
-            _raise_span +
-            INSURANCE_WINDOW *
-            BLOCKS_PER_DAY;
+        insurance_deadline = _raise_end + INSURANCE_WINDOW * BLOCKS_PER_DAY;
         repay_deadline = _repay_deadline;
         require(
             repay_deadline > insurance_deadline,
-            "MoneyDaoTemplate: repay deadline too early"
+            "MoneyDaoFixedRaisingTemplate: repay deadline too early"
         );
         profit_rate = _profit_rate;
         status = ProjectStatus.Auditing;
@@ -123,6 +128,15 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
         view
         returns (uint256, bool)
     {}
+
+    // mark_insurance_paid will honor the full raisine period
+    function mark_insurance_paid() public override platformRequired {
+        require(
+            block.number >= raise_end,
+            "MoneyDaoFixedRaisingTemplate: still in raising"
+        );
+        super.mark_insurance_paid();
+    }
 
     function next_proposal_id() public view returns (uint256) {
         return proposals.length;
@@ -185,7 +199,7 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
                     (_status, again) = (ProjectStatus.Failed, true);
                 }
             } else if (_status == ProjectStatus.Audited) {
-                if (block.number < raise_end) {
+                if (block.number >= raise_start && block.number < raise_end) {
                     (_status, again) = (ProjectStatus.Raising, false);
                 }
             } else if (_status == ProjectStatus.Raising) {
@@ -313,7 +327,7 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
             if (status == ProjectStatus.Auditing) {
                 again = _heartbeat_auditing();
             } else if (status == ProjectStatus.Audited) {
-                if (block.number < raise_end) {
+                if (block.number >= raise_start && block.number < raise_end) {
                     status = ProjectStatus.Raising;
                     again = true;
                     emit ProjectRaising(id);
@@ -405,7 +419,10 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
         (uint256 amount, ) = super.platform_repay(account);
         uint256 profit_total = amount.mul(profit_rate).div(10000).add(amount);
         uint256 this_usdt_balance = USDT_address.balanceOf(address(this));
-        require(this_usdt_balance > 0, "MoneyDaoTemplate: no balance");
+        require(
+            this_usdt_balance > 0,
+            "MoneyDaoFixedRaisingTemplate: no balance"
+        );
         if (profit_total > this_usdt_balance) {
             profit_total = this_usdt_balance;
         }
@@ -418,13 +435,13 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
         Proposal storage p = proposals[active_proposal];
         require(
             block.number >= p.start && block.number < p.end,
-            "MoneyDaoTemplate: proposal timing wrong"
+            "MoneyDaoFixedRaisingTemplate: proposal timing wrong"
         );
         require(
             status == ProjectStatus.Rolling &&
                 p.amount > 0 &&
                 p.finished == false,
-            "MoneyDaoTemplate: proposal not valid"
+            "MoneyDaoFixedRaisingTemplate: proposal not valid"
         );
         _cast_vote(msg.sender, support);
         _check_vote_result();
@@ -436,7 +453,7 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
             status == ProjectStatus.Rolling &&
                 proposals[active_proposal].amount > 0 &&
                 proposals[active_proposal].finished == false,
-            "MoneyDaoTemplate: proposal not valid"
+            "FixexCheckpointMoneyDaoTemplate: proposal not valid"
         );
         _check_vote_result();
         heartbeat();
@@ -447,14 +464,14 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
         VotesRecord storage vr = votes_records[active_proposal];
         require(
             vr.receipts[voter].hasVoted == false,
-            "MoneyDaoTemplate: account voted"
+            "MoneyDaoFixedRaisingTemplate: account voted"
         );
         require(
             block.number >= psl.start && block.number < psl.end,
-            "MoneyDaoTemplate: not in proposal vote window"
+            "MoneyDaoFixedRaisingTemplate: not in proposal vote window"
         );
         uint256 votes = getPriorVotes(voter, psl.start - 1);
-        require(votes > 0, "MoneyDaoTemplate: no votes");
+        require(votes > 0, "MoneyDaoFixedRaisingTemplate: no votes");
         if (support) {
             vr.for_votes = vr.for_votes.add(votes);
         } else {

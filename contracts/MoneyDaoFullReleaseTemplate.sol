@@ -13,7 +13,7 @@ contract MoneyDaoFullReleaseTemplate is BaseProjectTemplate {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    uint256 public constant BLOCKS_PER_DAY = 6500;
+    uint256 public constant BLOCKS_PER_DAY = 10;
     uint256 public constant INSURANCE_WINDOW = 3;
     uint256 public constant AUDIT_WINDOW = 5;
 
@@ -61,6 +61,10 @@ contract MoneyDaoFullReleaseTemplate is BaseProjectTemplate {
             INSURANCE_WINDOW *
             BLOCKS_PER_DAY;
         repay_deadline = _repay_deadline;
+        require(
+            repay_deadline > insurance_deadline,
+            "MoneyDaoFullReleaseTemplate: repay deadline too early"
+        );
         profit_rate = _profit_rate;
         status = ProjectStatus.Auditing;
         insurance_rate = _insurance_rate;

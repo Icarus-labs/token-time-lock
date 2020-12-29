@@ -1,5 +1,13 @@
 # 矿业生态聚合智能合约
 
+## 测试
+
+确保先自行启动了`npx hardhat node`
+
+```sh
+npm test -- [test/xxxxx.js]
+```
+
 ## 部署
 
 简单的部署直接参考`scripts/sample-scripts`

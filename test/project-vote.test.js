@@ -197,7 +197,5 @@ describe("ProjectTemplate illegal votes", function () {
     await expect(
       projectTemplate.connect(other1).vote_phase(1, true)
     ).to.be.revertedWith("ProjectTemplate: account voted");
-
-    expect(false).to.equal(true);
   });
 });
