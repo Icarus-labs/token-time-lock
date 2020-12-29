@@ -570,7 +570,12 @@ describe("MiningEco create project", function () {
 
     const pm_balance = await this.dada.balanceOf(pm.address);
     await mineBlocks(20);
+    const insurance_should = await this.miningEco.insurance(projectId);
     await this.miningEco.pay_insurance(projectId);
+
+    expect(insurance_should).to.equal(
+      pm_balance.sub(await this.dada.balanceOf(pm.address))
+    );
 
     expect(
       (
