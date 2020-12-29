@@ -37,7 +37,7 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    uint256 public constant BLOCKS_PER_DAY = 10;
+    uint256 public constant BLOCKS_PER_DAY = 6500;
     uint256 public constant INSURANCE_WINDOW = 3;
     uint256 public constant AUDIT_WINDOW = 5;
 
