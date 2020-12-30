@@ -324,7 +324,7 @@ describe("ProjectTemplate lifetime changes", function () {
     await pt.heartbeat();
     expect(await projectTemplate.status()).to.equal(6);
 
-    const interest = new BN(950)
+    const interest = new BN(repayDeadline - raiseEnd)
       .mul(new BN(1000))
       .mul(max)
       .div(new BN(10000))
@@ -777,12 +777,20 @@ describe("ProjectTemplate lifetime changes", function () {
     await pt.heartbeat();
     let _number = await getBlockNumber();
     await mineBlocks(repayDeadline - _number - 10);
-    await this.usdt
-      .connect(pm)
-      .transfer(pt.address, max.div(new BN(10)).add(max).toString());
+    const supposed_repay = max
+      .div(new BN(10))
+      .mul(new BN(repayDeadline - raiseEnd))
+      .div(new BN(10 * 365))
+      .add(max);
+    await this.usdt.connect(pm).transfer(pt.address, supposed_repay.toString());
     await pt.heartbeat();
+    const project_balance_before_repay = await this.usdt.balanceOf(pt.address);
     await miningEcoOther.repay(projectId);
-    expect((await this.usdt.balanceOf(pt.address)).toString()).to.equal("0");
+    expect(
+      project_balance_before_repay
+        .sub(await this.usdt.balanceOf(pt.address))
+        .toString()
+    ).to.equal(supposed_repay.toString());
     expect(await pt.status()).to.equal(13);
     await pt.heartbeat();
     expect(await pt.status()).to.equal(14);

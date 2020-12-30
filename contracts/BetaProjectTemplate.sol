@@ -494,7 +494,7 @@ contract BetaProjectTemplate is BaseProjectTemplate {
 
     function _heartbeat_succeeded() internal returns (bool) {
         if (block.number >= raise_end && promised_repay == 0) {
-            uint256 money_utilize_blocks = repay_deadline - phases[0].start;
+            uint256 money_utilize_blocks = repay_deadline - raise_end;
             uint256 year = 365 * BLOCKS_PER_DAY;
             uint256 interest =
                 actual_raised
@@ -738,7 +738,7 @@ contract BetaProjectTemplate is BaseProjectTemplate {
     {
         heartbeat();
         (uint256 amount, ) = super.platform_repay(account);
-        uint256 profit_total = amount.mul(profit_rate).div(10000).add(amount);
+        uint256 profit_total = promised_repay.mul(amount).div(actual_raised);
         uint256 this_usdt_balance = USDT_address.balanceOf(address(this));
         require(this_usdt_balance > 0, "ProjectTemplate: no balance");
         if (profit_total > this_usdt_balance) {

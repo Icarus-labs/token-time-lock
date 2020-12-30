@@ -129,7 +129,7 @@ contract MoneyDaoFixedRaisingFullReleaseTemplate is BaseProjectTemplate {
                     again = true;
                 }
             } else if (_status == ProjectStatus.Repaying) {
-                if (USDT_address.balanceOf(address(this)) == 0) {
+                if (balanceOf(address(this)) == totalSupply) {
                     (_status, again) = (ProjectStatus.Finished, true);
                 }
             }
@@ -162,17 +162,6 @@ contract MoneyDaoFixedRaisingFullReleaseTemplate is BaseProjectTemplate {
     }
 
     function _heartbeat_succeeded() internal returns (bool) {
-        if (block.number >= raise_end && promised_repay == 0) {
-            uint256 money_utilize_blocks = repay_deadline - raise_end;
-            uint256 year = 365 * BLOCKS_PER_DAY;
-            uint256 interest =
-                actual_raised
-                    .mul(profit_rate)
-                    .mul(money_utilize_blocks)
-                    .div(10000)
-                    .div(year);
-            promised_repay = actual_raised.add(interest);
-        }
         if (block.number > insurance_deadline) {
             status = ProjectStatus.Refunding;
             emit ProjectInsuranceFailure(id);
@@ -183,7 +172,7 @@ contract MoneyDaoFixedRaisingFullReleaseTemplate is BaseProjectTemplate {
     }
 
     function _heartbeat_repaying() internal returns (bool) {
-        if (USDT_address.balanceOf(address(this)) == 0) {
+        if (balanceOf(address(this)) == totalSupply) {
             status = ProjectStatus.Finished;
             emit ProjectFinished(id);
         }
@@ -195,6 +184,20 @@ contract MoneyDaoFixedRaisingFullReleaseTemplate is BaseProjectTemplate {
             USDT_address.allowance(msg.sender, address(this)) >= amount,
             "MoneyDaoFixedRaisingFullReleaseTemplate: USDT allowance not enough"
         );
+        uint256 money_utilize_blocks;
+        if (block.number <= repay_deadline) {
+            money_utilize_blocks = repay_deadline.sub(raise_end);
+        } else {
+            money_utilize_blocks = block.number.sub(raise_end);
+        }
+        uint256 year = 365 * BLOCKS_PER_DAY;
+        uint256 interest =
+            actual_raised
+                .mul(profit_rate)
+                .mul(money_utilize_blocks)
+                .div(10000)
+                .div(year);
+        promised_repay = actual_raised.add(interest);
         require(
             promised_repay <= USDT_address.balanceOf(address(this)).add(amount)
         );
@@ -299,7 +302,7 @@ contract MoneyDaoFixedRaisingFullReleaseTemplate is BaseProjectTemplate {
     {
         heartbeat();
         (uint256 amount, ) = super.platform_repay(account);
-        uint256 profit_total = amount.mul(profit_rate).div(10000).add(amount);
+        uint256 profit_total = promised_repay.mul(amount).div(actual_raised);
         uint256 this_usdt_balance = USDT_address.balanceOf(address(this));
         require(
             this_usdt_balance > 0,

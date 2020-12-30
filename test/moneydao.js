@@ -191,17 +191,34 @@ describe("MoneyDao", function () {
         moneydao.address,
         max.mul(new BN(11)).div(new BN(10)).toString()
       );
+    await mineBlocks(200);
+    const raiseEnd = await moneydao.raise_end();
+    let _number = await getBlockNumber();
+    let t = 0;
+    if (_number <= repay_deadline) {
+      t = repay_deadline - raiseEnd.toNumber();
+    } else {
+      t = _number - raiseEnd.toNumber();
+    }
+    const supposed_interest = max
+      .mul(new BN(1000))
+      .mul(new BN(t))
+      .div(new BN(10000))
+      .div(new BN(10 * 365));
+    const supposed_repay = max.add(supposed_interest);
     await moneydao.fill_repay_tokens(
       max.mul(new BN(11)).div(new BN(10)).toString()
     );
 
     // repaying
     expect(await moneydao.actual_project_status()).to.equal(13);
-
+    const balance_before_repay = await this.usdt.balanceOf(moneydao.address);
     await miningEcoOther.repay(projectId);
-    expect(await this.usdt.balanceOf(moneydao.address)).to.equal(
-      ethers.BigNumber.from(0)
-    );
+    expect(
+      balance_before_repay
+        .sub(await this.usdt.balanceOf(moneydao.address))
+        .toString()
+    ).to.equal(supposed_repay.toString());
     expect(await moneydao.actual_project_status()).to.equal(14);
     await moneydao.heartbeat();
     expect(await moneydao.status()).to.equal(14);
