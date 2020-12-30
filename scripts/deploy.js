@@ -8,13 +8,13 @@ const { ethers } = hre;
 const BN = require("bn.js");
 
 const D18 = new BN("1000000000000000000");
-const D8 = new BN("100000000");
+const D6 = new BN("1000000");
 const DADA_TOTAL_SUPPLY = D18.mul(new BN("10000000000000000000000"));
-const USDT_TOTAL = D8.mul(new BN("10000000000000000000"));
+const USDT_TOTAL = D6.mul(new BN("10000000000000000000"));
 
 const fs = require("fs");
 const overrides = {
-  gasPrice: ethers.utils.parseUnits("1.0", "gwei"),
+  // gasPrice: ethers.utils.parseUnits("1", "gwei"),
 };
 
 async function main() {
@@ -40,7 +40,7 @@ async function main() {
   const usdt = await StakingToken.deploy(
     "USDT",
     "USDT",
-    8,
+    6,
     USDT_TOTAL.toString(),
     USDT_TOTAL.toString(),
     overrides
@@ -64,12 +64,42 @@ async function main() {
   console.log("MiningEcoProxy deployed to:", proxy.address);
 
   const ProjectFactory = await ethers.getContractFactory("ProjectFactory");
+  const MoneyDaoFactory = await ethers.getContractFactory("MoneyDaoFactory");
+  const MoneyDaoFRFactory = await ethers.getContractFactory(
+    "MoneyDaoFullReleaseFactory"
+  );
+  const MoneyDaoFixFactory = await ethers.getContractFactory(
+    "MoneyDaoFixedRaisingFactory"
+  );
+  const MoneyDaoFixFRFactory = await ethers.getContractFactory(
+    "MoneyDaoFixedRaisingFullReleaseFactory"
+  );
+
   const projectFactory = await ProjectFactory.deploy(
     proxy.address,
     usdt.address,
     overrides
   );
-  console.log("Template deployed to:", projectFactory.address);
+  const moneyDaoFactory = await MoneyDaoFactory.deploy(
+    proxy.address,
+    usdt.address,
+    overrides
+  );
+  const moneyDaoFRFactory = await MoneyDaoFRFactory.deploy(
+    proxy.address,
+    usdt.address,
+    overrides
+  );
+  const moneyDaoFixFRFactory = await MoneyDaoFixFRFactory.deploy(
+    proxy.address,
+    usdt.address,
+    overrides
+  );
+  const moneyDaoFixFactory = await MoneyDaoFixFactory.deploy(
+    proxy.address,
+    usdt.address,
+    overrides
+  );
 
   const platform = MiningEco.attach(proxy.address).connect(platformManager);
   await platform.initialize(
@@ -80,7 +110,18 @@ async function main() {
     overrides
   );
   console.log("platform initialized");
-  await platform.set_template(0, projectFactory.address, overrides);
+  // await platform.set_template(0, projectFactory.address, overrides);
+  // await platform.set_template(1, moneyDaoFactory.address, overrides);
+  // await platform.set_template(2, moneyDaoFRFactory.address, overrides);
+  // await platform.set_template(3, moneyDaoFixFactory.address, overrides);
+  // await platform.set_template(4, moneyDaoFixFRFactory.address, overrides);
+
+  console.log(`0: projectTemplate: ${projectFactory.address}`);
+  console.log(`1: moneyDaoTemplate: ${moneyDaoFactory.address}`);
+  console.log(`2: moneyDaoFRTemplate: ${moneyDaoFRFactory.address}`);
+  console.log(`3: moneyDaoFixTemplate: ${moneyDaoFixFactory.address}`);
+  console.log(`4: moneyDaoFixFRTemplate: ${moneyDaoFixFRFactory.address}`);
+
   await platform.set_price_feed(priceFeed.address, overrides);
   console.log(
     "MiningEco Price Feed is set to 0.045 USDT, at address ",

@@ -44,6 +44,18 @@ module.exports = {
       accounts: privateKeys,
       timeout: 200000,
     },
+    binance_testnet: {
+      chainId: 97,
+      url: `https://data-seed-prebsc-1-s1.binance.org:8545/`,
+      accounts: privateKeys,
+      timeout: 200000,
+    },
+    huobi_testnet: {
+      chainId: 256,
+      url: `https://http-testnet.hecochain.com`,
+      accounts: privateKeys,
+      timeout: 200000,
+    },
   },
   solidity: {
     version: "0.6.12",
