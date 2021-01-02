@@ -34,11 +34,10 @@ contract MiningEco is HasConstantSlots {
     using Address for address;
     using SafeERC20 for IERC20;
 
-    uint256 public constant DEFAULT_INSURANCE_RATE = 1000;
-
     IERC20 USDT_address;
     bool public initialized;
     uint256 public fee_rate;
+    uint256 public insurance_rate;
     address public platform_token;
     address payable public insurance_vault;
     address payable public fee_vault;
@@ -53,6 +52,8 @@ contract MiningEco is HasConstantSlots {
     mapping(address => bytes32) public projects_by_address;
     mapping(address => bytes32[]) public users_projects;
     mapping(uint256 => address) public template_gallery;
+
+    uint256 public constant DEFAULT_INSURANCE_RATE = 1000;
 
     modifier projectIdExists(bytes32 id) {
         require(
