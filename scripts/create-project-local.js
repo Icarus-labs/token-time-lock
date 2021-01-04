@@ -5,7 +5,7 @@ const BN = require("bn.js");
 const { mineBlocks, getBlockNumber } = require("../test/helpers.js");
 
 const D18 = new BN("1000000000000000000");
-const D8 = new BN("100000000");
+const D6 = new BN("1000000");
 const DADA_TOTAL_SUPPLY = D18.mul(new BN("100000000000000000"));
 
 const overrides = {
@@ -18,7 +18,7 @@ const addrs = JSON.parse(
 );
 
 const balancePM = D18.mul(new BN("10000000000"));
-const balancePMusdt = D8.mul(new BN("1000000"));
+const balancePMusdt = D6.mul(new BN("1000000"));
 
 async function main() {
   const [
@@ -29,15 +29,13 @@ async function main() {
   ] = await ethers.getSigners();
 
   const projectId = "0x" + cryptoRandomString({ length: 64 });
-  const ProjectTemplate = await ethers.getContractFactory(
-    "TestProjectTemplate"
-  );
+  const ProjectTemplate = await ethers.getContractFactory("ProjectTemplate");
   const MiningEco = await ethers.getContractFactory("MiningEco");
   const DADA = await ethers.getContractFactory("StakingToken");
   const USDT = await ethers.getContractFactory("StakingToken");
 
   const initializeFrgmt = ProjectTemplate.interface.getFunction("initialize");
-  const max = D8.mul(new BN(1000000));
+  const max = D6.mul(new BN(1000000));
   const min = max.mul(new BN(8)).div(new BN(10));
   {
     await DADA.attach(addrs.dada).connect(owner).mint(balancePM.toString());
@@ -77,7 +75,7 @@ async function main() {
       profitRate,
       phases,
       replanGrants,
-      0,
+      1000,
     ]
   );
   await DADA.attach(addrs.dada)
@@ -92,7 +90,7 @@ async function main() {
   await sent.wait(1);
   await MiningEco.attach(addrs.miningeco)
     .connect(platformManager)
-    .audit_project(projectId, true);
+    .audit_project(projectId, true, 1000);
   await mineBlocks(auditWindow + 10);
   let project = await MiningEco.attach(addrs.miningeco)
     .connect(other1)

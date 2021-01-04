@@ -63,7 +63,7 @@ async function main() {
   );
   console.log("MiningEcoProxy deployed to:", proxy.address);
 
-  const ProjectFactory = await ethers.getContractFactory("TestProjectFactory");
+  const ProjectFactory = await ethers.getContractFactory("ProjectFactory");
   const projectFactory = await ProjectFactory.deploy(
     proxy.address,
     usdt.address,
