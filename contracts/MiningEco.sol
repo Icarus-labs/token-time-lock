@@ -34,6 +34,15 @@ contract MiningEco is HasConstantSlots {
     using Address for address;
     using SafeERC20 for IERC20;
 
+    /*
+     *
+
+     !!! Never ever delete a field !!!
+
+     Only append new fields at the back
+
+     *
+     */
     IERC20 USDT_address;
     bool public initialized;
     uint256 public fee_rate;
@@ -54,6 +63,9 @@ contract MiningEco is HasConstantSlots {
     mapping(uint256 => address) public template_gallery;
 
     uint256 public constant DEFAULT_INSURANCE_RATE = 1000;
+    /*
+      Append-Only Ends Here
+    */
 
     modifier projectIdExists(bytes32 id) {
         require(
