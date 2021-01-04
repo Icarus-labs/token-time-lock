@@ -64,9 +64,15 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
         _;
     }
 
+    event ProposalCreated(
+        bytes32 projectid,
+        uint256 proposalid,
+        uint256 start,
+        uint256 end
+    );
     event ProposalPassed(bytes32 projectid, uint256 proposalid);
     event ProposalDenied(bytes32 projectid, uint256 proposalid);
-    event MoneyGiven(bytes32 projectid, uint256 amount);
+    event MoneyGiven(bytes32 projectid, uint256 proposalid, uint256 amount);
 
     constructor(
         bytes32 _pid,
@@ -183,6 +189,8 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
             proposals.length == votes_records.length,
             "MoneyDaoTemplate: inconsistent proposals against votes_records"
         );
+
+        emit ProposalCreated(id, _proposal_id, _start, _end);
         return _proposal_id;
     }
 
@@ -500,7 +508,7 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
         psl.finished = true;
         psl.result = true;
         emit ProposalPassed(id, active_proposal);
-        emit MoneyGiven(id, psl.amount);
+        emit MoneyGiven(id, active_proposal, psl.amount);
 
         _remove_active_proposal();
     }
