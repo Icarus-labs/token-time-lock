@@ -134,8 +134,8 @@ describe("MoneyDao", function () {
       .approve(miningEcoOther.address, max.toString());
     await miningEcoOther.invest(projectId, max.toString());
     await this.miningEco.pay_insurance(projectId);
-    await moneydao.heartbeat();
     expect(await moneydao.status()).to.equal(7);
+    await moneydao.heartbeat();
 
     // everything set up well
 

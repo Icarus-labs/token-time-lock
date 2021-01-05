@@ -139,8 +139,8 @@ describe("MoneyDao FullRelease", function () {
     await miningEcoOther.invest(projectId, max.toString());
     const pm_balance = await this.usdt.balanceOf(pm.address);
     await this.miningEco.pay_insurance(projectId);
-    await moneydao.heartbeat();
     expect(await moneydao.status()).to.equal(7);
+    await moneydao.heartbeat();
 
     expect(await this.usdt.balanceOf(moneydao.address)).to.equal(
       ethers.BigNumber.from(0)

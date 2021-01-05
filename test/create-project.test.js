@@ -153,7 +153,7 @@ describe("MiningEco create project", function () {
         "test1",
         calldata
       )
-    ).to.be.revertedWith("ProjectTemplate: phase length");
+    ).to.be.revertedWith("");
   });
 
   it("phase boundaries across", async function () {
@@ -199,7 +199,7 @@ describe("MiningEco create project", function () {
         "test1",
         calldata
       )
-    ).to.be.revertedWith("ProjectTemplate: phase boundaries across");
+    ).to.be.revertedWith("");
   });
 
   it("insufficient creation fee", async function () {
@@ -340,7 +340,7 @@ describe("MiningEco create project", function () {
         "test1",
         calldata
       )
-    ).to.be.revertedWith("ProjectTemplate: not 100 percent");
+    ).to.be.revertedWith("");
   });
 
   it("wrong phase duration", async function () {
@@ -387,7 +387,7 @@ describe("MiningEco create project", function () {
         "test1",
         calldata
       )
-    ).to.be.revertedWith("ProjectTemplate: phase boundaries across");
+    ).to.be.revertedWith("");
   });
 
   it("create && succeed && claim bonus", async function () {

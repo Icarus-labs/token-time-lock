@@ -120,23 +120,14 @@ contract ProjectTemplate is BaseProjectTemplate {
         address[] memory _replan_grants,
         uint256 _insurance_rate
     ) public onlyOwner projectJustCreated {
-        require(_phases.length > 1, "ProjectTemplate: phase length");
-        require(
-            _phases[0].percent <= 80,
-            "ProjectTemplate: first phase can't over 80 percent"
-        );
+        require(_phases.length > 1);
+        require(_phases[0].percent <= 80);
         uint256 total_percent = 0;
         for (uint256 i = 0; i < _phases.length; i++) {
             total_percent = total_percent.add(_phases[i].percent);
-            require(
-                _phases[i].start < _phases[i].end,
-                "ProjectTemplate: phase boundaries across"
-            );
+            require(_phases[i].start < _phases[i].end);
             if (i + 1 < _phases.length) {
-                require(
-                    _phases[i].end <= _phases[i + 1].start,
-                    "ProjectTemplate: phase boundaries across"
-                );
+                require(_phases[i].end <= _phases[i + 1].start);
             }
             // first phase is set to success by default
             phases.push(
@@ -152,7 +143,7 @@ contract ProjectTemplate is BaseProjectTemplate {
                 })
             );
         }
-        require(total_percent == 100, "ProjectTemplate: not 100 percent");
+        require(total_percent == 100);
 
         fund_receiver = _recv;
         audit_end = block.number + BLOCKS_PER_DAY * AUDIT_WINDOW;
@@ -162,19 +153,10 @@ contract ProjectTemplate is BaseProjectTemplate {
         max_amount = _max;
         insurance_rate = _insurance_rate;
         insurance_deadline = _raise_end + INSURANCE_WINDOW * BLOCKS_PER_DAY;
-        require(
-            _raise_start >= audit_end,
-            "ProjectTemplate: raise start before audit end"
-        );
-        require(
-            insurance_deadline <= _phases[0].start,
-            "ProjectTemplate: phase start before insurance deadline"
-        );
+        require(_raise_start >= audit_end);
+        require(insurance_deadline <= _phases[0].start);
         repay_deadline = _repay_deadline;
-        require(
-            repay_deadline > insurance_deadline,
-            "ProjectTemplate: repay deadline too early"
-        );
+        require(repay_deadline > insurance_deadline);
         profit_rate = _profit_rate;
         for (uint256 i = 0; i < _replan_grants.length; i++) {
             who_can_replan[_replan_grants[i]] = true;
@@ -215,12 +197,9 @@ contract ProjectTemplate is BaseProjectTemplate {
             uint256
         )
     {
-        require(
-            phase_id >= 0 && phase_id < phases.length,
-            "ProjectTemplate: phase doesn't exists"
-        );
+        require(phase_id >= 0 && phase_id < phases.length);
         VotingPhase storage vp = phases[phase_id];
-        require(vp.start > 0, "ProjectTemplate: phase doesn't exists");
+        require(vp.start > 0);
 
         return (vp.start, vp.end, vp.closed, vp.result, vp.votes.against_votes);
     }
@@ -249,10 +228,7 @@ contract ProjectTemplate is BaseProjectTemplate {
         bool replan
     ) public view returns (uint256, bool) {
         if (replan) {
-            require(
-                replan_votes.checkpoint != 0,
-                "ProjectTemplate: no running replan vote"
-            );
+            require(replan_votes.checkpoint != 0);
             VotingReceipt storage vr = replan_votes.votes.receipts[user];
             if (vr.votes > 0) {
                 return (vr.votes, true);
@@ -261,7 +237,7 @@ contract ProjectTemplate is BaseProjectTemplate {
             }
         } else {
             VotingPhase storage vp = phases[phase_id];
-            require(vp.start != 0, "ProjectTemplate: no running phase vote");
+            require(vp.start != 0);
             VotingReceipt storage vr = vp.votes.receipts[user];
             if (vr.votes > 0) {
                 return (vr.votes, true);
@@ -394,8 +370,7 @@ contract ProjectTemplate is BaseProjectTemplate {
                     uint256(current_phase) + 1 < phases.length &&
                     phases[uint256(current_phase)].closed &&
                     phases[uint256(current_phase)].result &&
-                    block.number < phases[uint256(current_phase + 1)].start,
-                "ProjectTemplate: not allowed to replan"
+                    block.number < phases[uint256(current_phase + 1)].start
             );
             for (
                 uint256 i = uint256(current_phase) + 1;
@@ -407,31 +382,21 @@ contract ProjectTemplate is BaseProjectTemplate {
             for (uint256 j = 0; j < _phases.length; j++) {
                 total_percent_new = total_percent_new.add(_phases[j].percent);
             }
-            require(
-                total_percent_left == total_percent_new,
-                "ProjectTemplate: inconsistent percent"
-            );
+            require(total_percent_left == total_percent_new);
             _replan(_phases);
         } else {
             require(
                 status == ProjectStatus.PhaseFailed ||
-                    status == ProjectStatus.ReplanFailed,
-                "ProjectTemplate: not allowed to replan"
+                    status == ProjectStatus.ReplanFailed
             );
-            require(
-                block.number < phase_replan_deadline,
-                "ProjectTemplate: missing the replan window"
-            );
+            require(block.number < phase_replan_deadline);
             for (uint256 i = uint256(current_phase); i < phases.length; i++) {
                 total_percent_left = total_percent_left.add(phases[i].percent);
             }
             for (uint256 j = 0; j < _phases.length; j++) {
                 total_percent_new = total_percent_new.add(_phases[j].percent);
             }
-            require(
-                total_percent_left == total_percent_new,
-                "ProjectTemplate: inconsistent percent"
-            );
+            require(total_percent_left == total_percent_new);
             _replan(_phases);
         }
     }
@@ -439,10 +404,7 @@ contract ProjectTemplate is BaseProjectTemplate {
     function _replan(PhaseInfo[] memory _phases) internal {
         uint256 checkpoint = block.number + BLOCKS_PER_DAY * REPLAN_NOTICE;
         uint256 deadline = checkpoint + BLOCKS_PER_DAY * REPLAN_VOTE_WINDOW;
-        require(
-            _phases[0].start >= deadline,
-            "ProjectTemplate: new phase start before replan vote"
-        );
+        require(_phases[0].start >= deadline);
         _reset_replan_votes();
         for (uint256 i = 0; i < _phases.length; i++) {
             replan_votes.new_phases.push(
@@ -744,7 +706,7 @@ contract ProjectTemplate is BaseProjectTemplate {
         (uint256 amount, ) = super.platform_repay(account);
         uint256 profit_total = promised_repay.mul(amount).div(actual_raised);
         uint256 this_usdt_balance = USDT_address.balanceOf(address(this));
-        require(this_usdt_balance > 0, "ProjectTemplate: no balance");
+        require(this_usdt_balance > 0);
         if (profit_total > this_usdt_balance) {
             profit_total = this_usdt_balance;
         }
@@ -756,8 +718,7 @@ contract ProjectTemplate is BaseProjectTemplate {
         heartbeat();
         require(
             status == ProjectStatus.Rolling &&
-                uint256(current_phase) == phase_id,
-            "ProjectTemplate: can't vote this phase"
+                uint256(current_phase) == phase_id
         );
         _cast_vote(msg.sender, phase_id, support);
         _check_vote_result();
@@ -770,14 +731,10 @@ contract ProjectTemplate is BaseProjectTemplate {
     function vote_replan(bool support) public {
         heartbeat();
         require(status == ProjectStatus.ReplanVoting);
-        require(
-            replan_votes.new_phases.length > 0,
-            "ProjectTemplate: no replan auth"
-        );
+        require(replan_votes.new_phases.length > 0);
         require(
             block.number >= replan_votes.checkpoint &&
-                block.number < replan_votes.deadline,
-            "ProjectTemplate: replan vote window is over"
+                block.number < replan_votes.deadline
         );
         _cast_replan_vote(msg.sender, support);
         _check_replan_vote_result();
@@ -797,44 +754,19 @@ contract ProjectTemplate is BaseProjectTemplate {
         heartbeat();
     }
 
-    // owner can claim all phases that before current phase
-    function claim() public onlyOwner {
-        heartbeat();
-        // for (uint256 i = 0; i <= uint256(current_phase); i++) {
-        //     VotingPhase storage vp = phases[i];
-        //     require(vp.closed && vp.result, "ProjectTemplate: phase is wrong");
-        //     if (vp.claimed) {
-        //         continue;
-        //     } else {
-        //         vp.claimed = true;
-        //         vp.processed = true;
-        //         USDT_address.safeTransfer(
-        //             fund_receiver,
-        //             actual_raised.mul(vp.percent).div(100)
-        //         );
-        //     }
-        // }
-    }
-
     function _cast_vote(
         address voter,
         uint256 phase_id,
         bool support
     ) internal {
-        require(
-            uint256(current_phase) == phase_id,
-            "ProjectTemplate: not current phase"
-        );
+        require(uint256(current_phase) == phase_id);
         VotingPhase storage vp = phases[phase_id];
-        require(!vp.closed, "ProjectTemplate: phase is closed");
+        require(!vp.closed);
         VotingReceipt storage receipt = vp.votes.receipts[voter];
-        require(receipt.hasVoted == false, "ProjectTemplate: account voted");
-        require(
-            block.number >= vp.start,
-            "ProjectTemplate: vote not start yet"
-        );
+        require(receipt.hasVoted == false);
+        require(block.number >= vp.start);
         uint256 votes = getPriorVotes(voter, vp.start - 1);
-        require(votes > 0, "ProjectTemplate: no votes");
+        require(votes > 0);
         if (support) {
             vp.votes.for_votes = vp.votes.for_votes.add(votes);
         } else {
@@ -849,10 +781,10 @@ contract ProjectTemplate is BaseProjectTemplate {
 
     function _cast_replan_vote(address voter, bool support) internal {
         VotingReceipt storage receipt = replan_votes.votes.receipts[voter];
-        require(receipt.hasVoted == false, "ProjectTemplate: account voted");
+        require(receipt.hasVoted == false);
         require(block.number >= replan_votes.checkpoint);
         uint256 votes = getPriorVotes(voter, replan_votes.checkpoint - 1);
-        require(votes > 0, "ProjectTemplate: no votes");
+        require(votes > 0);
 
         if (support) {
             replan_votes.votes.for_votes = replan_votes.votes.for_votes.add(
@@ -924,7 +856,7 @@ contract ProjectTemplate is BaseProjectTemplate {
     // _when_phase_been_passed should only be executed only once
     function _when_phase_been_passed(uint256 _phase_id) internal {
         VotingPhase storage vp = phases[_phase_id];
-        require(!vp.claimed && !vp.processed, "ProjectTemplate: phase error");
+        require(!vp.claimed && !vp.processed);
         vp.closed = true;
         vp.result = true;
         vp.claimed = true;
@@ -938,7 +870,7 @@ contract ProjectTemplate is BaseProjectTemplate {
     // _when_phase_been_denied should only be executed only once
     function _when_phase_been_denied(uint256 _phase_id) internal {
         VotingPhase storage vp = phases[_phase_id];
-        require(!vp.claimed && !vp.processed, "ProjectTemplate: phase error");
+        require(!vp.claimed && !vp.processed);
         vp.closed = true;
         vp.processed = true;
         failed_phase_count = failed_phase_count.add(1);
@@ -956,25 +888,21 @@ contract ProjectTemplate is BaseProjectTemplate {
         return block.number + BLOCKS_PER_DAY * 3;
     }
 
-    // function _beforeTokenTransfer(
-    //     address from,
-    //     address to,
-    //     uint256 amount
-    // ) internal virtual override {
-    //     super._beforeTokenTransfer(from, to, amount);
-    //     if (from == address(0)) {
-    //         require(to == to);
-    //         // When minting tokens
-    //         uint256 newSupply = totalSupply.add(amount);
-    //         require(newSupply <= max_amount);
-    //     }
-    // }
-
     function _locked_investment() internal view returns (uint256) {
         uint256 total = 0;
         for (uint256 i = uint256(current_phase); i < phases.length; i++) {
             total = total.add(actual_raised.mul(phases[i].percent).div(100));
         }
         return total;
+    }
+
+    function mark_insurance_paid() public override platformRequired {
+        require(block.number < insurance_deadline);
+        require(
+            status == ProjectStatus.Succeeded &&
+                (actual_raised == max_amount || block.number >= raise_end)
+        );
+        super.mark_insurance_paid();
+        heartbeat();
     }
 }

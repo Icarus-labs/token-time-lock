@@ -148,8 +148,8 @@ describe("MoneyDaoFixedRaisingFullRelease", function () {
     );
     await mineBlocks(30);
     await this.miningEco.pay_insurance(projectId);
-    await moneydao.heartbeat();
     expect(await moneydao.status()).to.equal(7);
+    await moneydao.heartbeat();
 
     expect(await this.usdt.balanceOf(moneydao.address)).to.equal(
       ethers.BigNumber.from(0)

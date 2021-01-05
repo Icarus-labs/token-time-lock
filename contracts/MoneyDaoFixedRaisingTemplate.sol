@@ -153,10 +153,15 @@ contract MoneyDaoFixedRaisingTemplate is BaseProjectTemplate {
     // mark_insurance_paid will honor the full raisine period
     function mark_insurance_paid() public override platformRequired {
         require(
+            block.number < insurance_deadline,
+            "MoneyDaoFixedRaisingTemplate: missing the insurance window"
+        );
+        require(
             block.number >= raise_end,
             "MoneyDaoFixedRaisingTemplate: still in raising"
         );
         super.mark_insurance_paid();
+        heartbeat();
     }
 
     function next_proposal_id() public view returns (uint256) {

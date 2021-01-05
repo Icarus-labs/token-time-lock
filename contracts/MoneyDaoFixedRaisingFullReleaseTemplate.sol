@@ -78,6 +78,10 @@ contract MoneyDaoFixedRaisingFullReleaseTemplate is BaseProjectTemplate {
 
     function mark_insurance_paid() public override platformRequired {
         require(
+            block.number < insurance_deadline,
+            "MoneyDaoFixedRaisingFullReleaseTemplate: missing the insurance window"
+        );
+        require(
             block.number >= raise_end,
             "MoneyDaoFixedRaisingFullReleaseTemplate: still in raising"
         );
@@ -85,6 +89,8 @@ contract MoneyDaoFixedRaisingFullReleaseTemplate is BaseProjectTemplate {
         require(USDT_address.balanceOf(address(this)) >= actual_raised);
         USDT_address.safeTransfer(fund_receiver, actual_raised);
         emit MoneyGiven(id, actual_raised);
+
+        heartbeat();
     }
 
     function actual_project_status() public view returns (ProjectStatus) {

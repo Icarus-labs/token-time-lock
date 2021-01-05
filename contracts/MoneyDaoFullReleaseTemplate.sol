@@ -71,10 +71,21 @@ contract MoneyDaoFullReleaseTemplate is BaseProjectTemplate {
     }
 
     function mark_insurance_paid() public override platformRequired {
-        super.mark_insurance_paid();
+        require(
+            block.number < insurance_deadline,
+            "MoneyDaoFullReleaseTemplate: missing the insurance window"
+        );
+        require(
+            status == ProjectStatus.Succeeded &&
+                (actual_raised == max_amount || block.number >= raise_end),
+            "MoneyDaoFullReleaseTemplate: can not pay insurance in advance"
+        );
         require(USDT_address.balanceOf(address(this)) >= actual_raised);
+        super.mark_insurance_paid();
         USDT_address.safeTransfer(fund_receiver, actual_raised);
         emit MoneyGiven(id, actual_raised);
+
+        heartbeat();
     }
 
     function actual_project_status() public view returns (ProjectStatus) {

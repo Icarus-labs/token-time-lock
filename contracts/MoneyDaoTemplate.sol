@@ -371,6 +371,20 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
         } while (again);
     }
 
+    function mark_insurance_paid() public override platformRequired {
+        require(
+            block.number < insurance_deadline,
+            "MoneyDaoTemplate: missing the insurance window"
+        );
+        require(
+            status == ProjectStatus.Succeeded &&
+                (actual_raised == max_amount || block.number >= raise_end),
+            "MoneyDaoTemplate: can not pay insurance in advance"
+        );
+        super.mark_insurance_paid();
+        heartbeat();
+    }
+
     function platform_audit(bool pass, uint256 _insurance_rate)
         public
         override
