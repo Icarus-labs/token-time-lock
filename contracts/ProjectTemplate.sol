@@ -298,8 +298,8 @@ contract ProjectTemplate is BaseProjectTemplate {
                     (_status, again) = (ProjectStatus.Failed, true);
                 }
             } else if (_status == ProjectStatus.Audited) {
-                if (block.number >= raise_start && block.number < raise_end) {
-                    (_status, again) = (ProjectStatus.Raising, false);
+                if (block.number >= raise_start) {
+                    (_status, again) = (ProjectStatus.Raising, true);
                 }
             } else if (_status == ProjectStatus.Raising) {
                 if (block.number >= raise_end) {

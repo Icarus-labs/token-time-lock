@@ -87,9 +87,7 @@ contract MoneyDaoFullReleaseTemplate is BaseProjectTemplate {
                     (_status, again) = (ProjectStatus.Failed, true);
                 }
             } else if (_status == ProjectStatus.Audited) {
-                if (block.number < raise_end) {
-                    (_status, again) = (ProjectStatus.Raising, false);
-                }
+                (_status, again) = (ProjectStatus.Raising, true);
             } else if (_status == ProjectStatus.Raising) {
                 if (block.number >= raise_end) {
                     if (
@@ -152,7 +150,7 @@ contract MoneyDaoFullReleaseTemplate is BaseProjectTemplate {
     }
 
     function _heartbeat_succeeded() internal returns (bool) {
-        if (block.number > insurance_deadline) {
+        if (block.number >= insurance_deadline) {
             status = ProjectStatus.Refunding;
             emit ProjectInsuranceFailure(id);
             emit ProjectRefunding(id);
@@ -206,11 +204,9 @@ contract MoneyDaoFullReleaseTemplate is BaseProjectTemplate {
             if (status == ProjectStatus.Auditing) {
                 again = _heartbeat_auditing();
             } else if (status == ProjectStatus.Audited) {
-                if (block.number < raise_end) {
-                    status = ProjectStatus.Raising;
-                    again = true;
-                    emit ProjectRaising(id);
-                }
+                status = ProjectStatus.Raising;
+                again = true;
+                emit ProjectRaising(id);
             } else if (status == ProjectStatus.Raising) {
                 again = _heartbeat_raising();
             } else if (
