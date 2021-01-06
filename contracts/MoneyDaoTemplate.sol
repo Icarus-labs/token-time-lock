@@ -385,6 +385,15 @@ contract MoneyDaoTemplate is BaseProjectTemplate {
         heartbeat();
     }
 
+    function platform_update_status(ProjectStatus _status)
+        public
+        override
+        platformRequired
+    {
+        super.platform_update_status(_status);
+        heartbeat();
+    }
+
     function platform_audit(bool pass, uint256 _insurance_rate)
         public
         override

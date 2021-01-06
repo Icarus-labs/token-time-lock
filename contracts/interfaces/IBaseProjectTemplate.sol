@@ -29,6 +29,8 @@ interface IBaseProjectTemplate {
         external
         returns (uint256, uint256);
 
+    function platform_update_status(ProjectStatus status) external;
+
     function heartbeat() external;
 
     function max_amount() external view returns (uint256);

@@ -167,6 +167,10 @@ abstract contract BaseProjectTemplate is Ownable, ProjectToken {
         return (amt, amt);
     }
 
+    function platform_update_status(ProjectStatus _status) public virtual {
+        status = _status;
+    }
+
     function heartbeat() public virtual;
 
     function _beforeTokenTransfer(

@@ -547,4 +547,13 @@ contract MoneyDaoFixedRaisingTemplate is BaseProjectTemplate {
     function _remove_active_proposal() internal {
         active_proposal = proposals.length + 99;
     }
+
+    function platform_update_status(ProjectStatus _status)
+        public
+        override
+        platformRequired
+    {
+        super.platform_update_status(_status);
+        heartbeat();
+    }
 }

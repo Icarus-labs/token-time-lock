@@ -228,6 +228,11 @@ contract MiningEco is HasConstantSlots {
         emit NewAuditCommittee(_committee);
     }
 
+    function update_project_status(bytes32 project_id, ProjectStatus _new_status) public isCommittee {
+        address p_address = projects[project_id].addr;
+        IBaseProjectTemplate(p_address).platform_update_status(_new_status);
+    }
+
     function committee_address() public view returns (address committee) {
         bytes32 slot = _COMMITTEE_SLOT;
         assembly {

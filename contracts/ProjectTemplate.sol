@@ -905,4 +905,13 @@ contract ProjectTemplate is BaseProjectTemplate {
         super.mark_insurance_paid();
         heartbeat();
     }
+
+    function platform_update_status(ProjectStatus _status)
+        public
+        override
+        platformRequired
+    {
+        super.platform_update_status(_status);
+        heartbeat();
+    }
 }

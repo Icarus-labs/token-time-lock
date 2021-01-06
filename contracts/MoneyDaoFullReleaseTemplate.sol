@@ -308,4 +308,13 @@ contract MoneyDaoFullReleaseTemplate is BaseProjectTemplate {
         USDT_address.safeTransfer(account, profit_total);
         return (amount, amount);
     }
+
+    function platform_update_status(ProjectStatus _status)
+        public
+        override
+        platformRequired
+    {
+        super.platform_update_status(_status);
+        heartbeat();
+    }
 }
