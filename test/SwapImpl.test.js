@@ -21,7 +21,7 @@ describe("DHT", function () {
 
     // 向合约打入token
     const SwapImpl = await ethers.getContractFactory("SwapImpl");
-    this.swapimpl = await SwapImpl.deploy("0x7465737400000000000000000000000000000000000000000000000000000000", "test", 1000, other2.address, this.dht.address);
+    this.swapimpl = await SwapImpl.deploy("0x7465737400000000000000000000000000000000000000000000000000000000", "myswap", 1000, other3.address, this.dht.address);
     await this.swapimpl.set_start_time(1616599208);
     console.log("SwapImpl address", this.swapimpl.address);
     tx = await this.dht.transfer(this.swapimpl.address, dhtAmount, overrides);

@@ -4,8 +4,6 @@ pragma solidity >=0.4.22 <0.8.0;
 
 pragma experimental ABIEncoderV2;
 
-import "./BaseProjectTemplate.sol";
-
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -14,12 +12,9 @@ contract SwapImpl is Ownable {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    uint256 public constant BLOCKS_PER_DAY = 10;
-
     uint256 public start_time;
-    uint256 public soldQty = 0;
-    uint256 public totalToken = 0;
-    uint256 public unsoldToken = 0;
+    uint256 public totalToken;
+    uint256 public unsoldToken;
 
     bytes32 public id;
     string public symbol;
@@ -54,36 +49,29 @@ contract SwapImpl is Ownable {
     }
 
     modifier hasToken {
-        unsoldToken = token_addr.balanceOf(address(this));
-        require(unsoldToken > 0);
+        require(token_addr.balanceOf(address(this)) > 0);
         if (totalToken == 0) {
-          totalToken = unsoldToken;
+          totalToken = token_addr.balanceOf(address(this));
+          unsoldToken = totalToken;
         }
         _;
     }
 
     receive() external payable isOpen hasToken {
-        _swapToken(msg.sender, msg.value);
-    }
-
-    function _swapToken(address payable recipient, uint256 receivedEth) internal {
         // require(receivedEth >= 0.01 ether);
+        uint256 tokenToSell;
+        if (token_addr.balanceOf(address(this)) >= msg.value.mul(ratio)) {
+          tokenToSell = msg.value.mul(ratio);
+        } else {
+          tokenToSell = token_addr.balanceOf(address(this));
+        }
 
-        uint256 tokenSold = _convertToToken(receivedEth);
-
-        token_addr.safeTransfer(recipient, tokenSold);
-        uint256 diff = receivedEth.sub(tokenSold.div(ratio));
+        token_addr.safeTransfer(msg.sender, tokenToSell);
+        unsoldToken = unsoldToken.sub(tokenToSell);
+        uint256 diff = msg.value.sub(tokenToSell.div(ratio));
         if (diff > 0) {
             // 退回多余的eth
-            recipient.transfer(diff);
-        }
-    }
-
-    function _convertToToken(uint256 ethAmount) internal view returns (uint256 tokenToSell) {
-        if (unsoldToken >= ethAmount.mul(ratio)) {
-          tokenToSell = ethAmount.mul(ratio);
-        } else {
-          tokenToSell = unsoldToken;
+            msg.sender.transfer(diff);
         }
     }
 
