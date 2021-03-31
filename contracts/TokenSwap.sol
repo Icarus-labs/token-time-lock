@@ -24,13 +24,6 @@ contract TokenSwap is Ownable {
     IERC20 public token_addr_1;
     IERC20 public token_addr_2;
 
-    // VotingPhase[] phases;
-    // ReplanVotes replan_votes;
-    // mapping(address => bool) who_can_replan;
-
-    // event ProjectPhaseChange(bytes32 project_id, uint256 phaseid);
-    // event ReplanVoteCast(address voter, bool support, uint256 votes);
-
     constructor(
         bytes32 _id,
         string memory _symbol,
@@ -69,9 +62,8 @@ contract TokenSwap is Ownable {
         } else {
           tokenToSwap = token_addr_2.balanceOf(address(this));  // tokenToSwap出售token2的数量
         }
-        // uint256 allowance = token_addr_1.allowance(msg.sender, address(this));
-        // require(allowance >= amount, "Check the token allowance");
-        token_addr_1.safeApprove(address(this), amount);
+
+        // token_addr_1.safeApprove(address(this), amount);
         token_addr_1.safeTransferFrom(msg.sender, address(this), amount);
 
         token_addr_2.safeTransfer(msg.sender, tokenToSwap);
@@ -80,10 +72,6 @@ contract TokenSwap is Ownable {
         if (diff > 0) {
             token_addr_1.safeTransfer(msg.sender, diff);  // 退回多余的token_addr_1
         }
-    }
-
-    function transferOwnership(address a) public virtual override onlyOwner {
-        super.transferOwnership(a);
     }
 
     function set_start_time(uint256 _start_time) public onlyOwner {

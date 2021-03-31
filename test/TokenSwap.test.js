@@ -43,6 +43,13 @@ describe("DHT", function () {
     await tx.wait(1);
 
     await this.token1.connect(other1).approve(this.tokenswap.address, D18.mul(1000));
+    expect(await this.token1.allowance(other1.address, this.tokenswap.address)).to.eq(D18.mul(1000));
+
+    await this.tokenswap.connect(other1).swap(D18.mul(5));
+    expect(await this.token1.balanceOf(other1.address)).to.eq(D18.mul(9995));
+    expect(await this.token2.balanceOf(other1.address)).to.eq(D18.mul(5000));
+    expect(await this.token1.balanceOf(this.tokenswap.address)).to.eq(D18.mul(5));
+    expect(await this.token2.balanceOf(this.tokenswap.address)).to.eq(D18.mul(19995000));
   });
 
   it("deploy uniswap", async function() {
