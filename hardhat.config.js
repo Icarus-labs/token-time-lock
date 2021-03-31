@@ -1,9 +1,10 @@
 require("@nomiclabs/hardhat-waffle");
+require("@nomiclabs/hardhat-etherscan");
 
 const fs = require("fs");
 const infuraKey = "e468cafc35eb43f0b6bd2ab4c83fa688";
 const privateKeys = JSON.parse(
-  fs.readFileSync("test.secret.json").toString().trim()
+  fs.readFileSync("local.secret.json").toString().trim()
 );
 
 // This is a sample Hardhat task. To learn how to create your own go to
@@ -24,6 +25,11 @@ task("accounts", "Prints the list of accounts", async () => {
  */
 module.exports = {
   defaultNetwork: "localhost",
+  etherscan: {
+    // Your API key for Etherscan
+    // Obtain one at https://etherscan.io/
+    apiKey: "7PZ59NKQMA2BFCG65YFHYUA35YGHB62RB2",
+  },
   networks: {
     hardhat: {},
     mainnet: {
@@ -50,6 +56,12 @@ module.exports = {
       accounts: privateKeys,
       timeout: 200000,
     },
+    binance_mainnet: {
+      chainId: 56,
+      url: "https://bsc-dataseed.binance.org/",
+      accounts: privateKeys,
+      timeout: 200000,
+    },
     huobi_testnet: {
       chainId: 256,
       url: `https://http-testnet.hecochain.com`,
@@ -62,7 +74,7 @@ module.exports = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 5,
+        runs: 200,
       },
     },
   },
